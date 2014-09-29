@@ -21,7 +21,7 @@
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 #include "MultiColvarBase.h"
 #include "MultiColvarFunction.h"
-#include "ActionVolume.h"
+#include "BridgedMultiColvarFunction.h"
 #include "vesselbase/Vessel.h"
 #include "tools/Pbc.h"
 #include <vector>
@@ -180,11 +180,11 @@ void MultiColvarBase::setupLinkCells(){
 
 void MultiColvarBase::resizeLocalArrays(){
   atoms_with_derivatives.clear(); 
-  for(unsigned i=0;i<getNumberOfAtoms();++i) atoms_with_derivatives.addIndexToList( i );
+  for(unsigned i=0;i<getSizeOfAtomsWithDerivatives();++i) atoms_with_derivatives.addIndexToList( i );
   atoms_with_derivatives.deactivateAll();
   // Set up stuff for central atoms
   atomsWithCatomDer.clear();
-  for(unsigned i=0;i<getNumberOfAtoms();++i) atomsWithCatomDer.addIndexToList( i );
+  for(unsigned i=0;i<getSizeOfAtomsWithDerivatives();++i) atomsWithCatomDer.addIndexToList( i );
   atomsWithCatomDer.deactivateAll();
 }
 
@@ -238,11 +238,9 @@ double MultiColvarBase::doCalculation(){
 }
 
 Vector MultiColvarBase::retrieveCentralAtomPos(){
-  ibox=getPbc().getInvBox().transpose();
-
   if( atomsWithCatomDer.getNumberActive()==0 ){
       Vector cvec = calculateCentralAtomPosition();
-      for(unsigned i=0;i<3;++i) setElementValue( 2+i, cvec[i] );
+      for(unsigned i=0;i<3;++i) setElementValue( getCentralAtomElementIndex()+i, cvec[i] );
       return cvec;
   }
   Vector cvec; 
@@ -256,7 +254,7 @@ void MultiColvarBase::addCentralAtomDerivatives( const unsigned& iatom, const Te
   unsigned nder = 3*getNumberOfAtoms() + 9;
   for(unsigned i=0;i<3;++i){ 
     for(unsigned j=0;j<3;++j){
-        addElementDerivative( (2+j)*nder + 3*iatom + i, der(j,i) );         
+        addElementDerivative( (getCentralAtomElementIndex()+j)*nder + 3*iatom + i, der(j,i) );
      }
   }
 }
@@ -264,9 +262,9 @@ void MultiColvarBase::addCentralAtomDerivatives( const unsigned& iatom, const Te
 double MultiColvarBase::getCentralAtomDerivative( const unsigned& iatom, const unsigned& jcomp, const Vector& df ){
   plumed_dbg_assert( atomsWithCatomDer.isActive(iatom) && jcomp<3 );
   unsigned nder = 3*getNumberOfAtoms() + 9;
-  return df[0]*getElementDerivative( 2*nder + 3*iatom + jcomp ) + 
-         df[1]*getElementDerivative( 3*nder + 3*iatom + jcomp ) + 
-         df[2]*getElementDerivative( 4*nder + 3*iatom + jcomp ); 
+  return df[0]*getElementDerivative( (getCentralAtomElementIndex()+0)*nder + 3*iatom + jcomp ) +
+         df[1]*getElementDerivative( (getCentralAtomElementIndex()+1)*nder + 3*iatom + jcomp ) +
+         df[2]*getElementDerivative( (getCentralAtomElementIndex()+2)*nder + 3*iatom + jcomp ); 
 }
 
 Vector MultiColvarBase::getSeparation( const Vector& vec1, const Vector& vec2 ) const {
@@ -372,21 +370,27 @@ void MultiColvarBase::apply(){
   if( getForcesFromVessels( forcesToApply ) ) setForcesOnAtoms( forcesToApply );
 }
 
-vesselbase::StoreDataVessel* MultiColvarBase::buildDataStashes(){
+vesselbase::StoreDataVessel* MultiColvarBase::buildDataStashes( const bool& allow_wcutoff, const double& wtol ){
   // Check if vessels have already been setup
   for(unsigned i=0;i<getNumberOfVessels();++i){
      StoreColvarVessel* ssc=dynamic_cast<StoreColvarVessel*>( getPntrToVessel(i) );
-     if(ssc) return ssc;
+     if(ssc){
+        if( allow_wcutoff && !ssc->weightCutoffIsOn() ) error("Cannot have more than one data stash with different properties");
+        if( !allow_wcutoff && ssc->weightCutoffIsOn() ) error("Cannot have more than one data stash with different properties");
+        return ssc;
+     }
   }
  
   // Setup central atoms
   vesselbase::VesselOptions da("","",0,"",this);
   mycatoms=new StoreCentralAtomsVessel(da);
-  addVessel(mycatoms);
+  if( allow_wcutoff ) mycatoms->setHardCutoffOnWeight( wtol );
+  addVessel(mycatoms); 
 
   // Setup store values vessel
   vesselbase::VesselOptions ta("","",0,"",this);
-  myvalues=new StoreColvarVessel(ta);   // Currently ignoring weights - good thing?
+  myvalues=new StoreColvarVessel(ta);   
+  if( allow_wcutoff ) myvalues->setHardCutoffOnWeight( wtol );
   addVessel(myvalues);
 
   // Make sure resizing of vessels is done
@@ -411,15 +415,15 @@ void MultiColvarBase::addCentralAtomDerivativeToFunction( const unsigned& iatom,
 }
 
 void MultiColvarBase::getValueForTask( const unsigned& iatom, std::vector<double>& vals ){
-  plumed_dbg_assert( myvalues && vals.size()==1 );
+  // plumed_dbg_assert( myvalues && vals.size()==1 );  // Problem if we want to do MultiColvar + Bridge + MultiColvarFunction
   vals[0]=myvalues->getValue( iatom );
 }
 
-void MultiColvarBase::copyElementsToBridgedColvar( const double& weight, ActionVolume* func ){
+void MultiColvarBase::copyElementsToBridgedColvar( BridgedMultiColvarFunction* func ){
   func->setElementValue( 0, getElementValue(0) ); 
   for(unsigned i=0;i<atoms_with_derivatives.getNumberActive();++i){
      unsigned n=atoms_with_derivatives[i], nx=3*n;
-     func->activeAtoms.activate(n);
+     func->atoms_with_derivatives.activate(n);
      func->addElementDerivative( nx+0, getElementDerivative(nx+0) );
      func->addElementDerivative( nx+1, getElementDerivative(nx+1) );
      func->addElementDerivative( nx+2, getElementDerivative(nx+2) ); 
@@ -427,24 +431,6 @@ void MultiColvarBase::copyElementsToBridgedColvar( const double& weight, ActionV
   unsigned nvir=3*getNumberOfAtoms();
   for(unsigned i=0;i<9;++i){ 
      func->addElementDerivative( nvir, getElementDerivative(nvir) ); nvir++;
-  }
-  func->setElementValue( 1, getElementValue(1) );
-
-  unsigned nder=getNumberOfDerivatives();
-  unsigned nderv=func->getNumberOfDerivatives();
-  // Add derivatives of weight if we have a weight
-  if( weightHasDerivatives ){
-     for(unsigned i=0;i<atoms_with_derivatives.getNumberActive();++i){
-        unsigned n=atoms_with_derivatives[i], nx=nder + 3*n, ny=nderv + 3*n;
-        func->activeAtoms.activate(n); 
-        func->addElementDerivative( ny+0, weight*getElementDerivative(nx+0) ); 
-        func->addElementDerivative( ny+1, weight*getElementDerivative(nx+1) ); 
-        func->addElementDerivative( ny+2, weight*getElementDerivative(nx+2) );
-     } 
-     unsigned nwvir=nder + 3*getNumberOfAtoms(), nwvir2=nderv + 3*getNumberOfAtoms();
-     for(unsigned i=0;i<9;++i){
-        func->addElementDerivative( nwvir2, getElementDerivative(nwvir) ); nwvir++; nwvir2++; 
-     }
   }
 }
 
@@ -456,6 +442,10 @@ void MultiColvarBase::addWeightedValueDerivatives( const unsigned& iatom, const 
   } else {
      myvalues->chainRuleForComponent( iatom, 0, base_cv_no, weight, func );
   }
+}
+
+bool MultiColvarBase::storedValueIsActive( const unsigned& iatom ){
+  return myvalues->storedValueIsActive( iatom );
 }
 
 void MultiColvarBase::finishWeightedAverageCalculation( MultiColvarFunction* func ){

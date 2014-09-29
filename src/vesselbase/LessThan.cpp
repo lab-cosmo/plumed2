@@ -44,6 +44,7 @@ void LessThan::reserveKeyword( Keywords& keys ){
 LessThan::LessThan( const VesselOptions& da ) :
 FunctionVessel(da)
 {
+  wnum=getAction()->getIndexOfWeight();
   if( getAction()->isPeriodic() ) error("LESS_THAN is not a meaningful option for periodic variables");
   std::string errormsg; sf.set( getAllInput(), errormsg ); 
   if( errormsg.size()!=0 ) error( errormsg ); 
@@ -54,7 +55,7 @@ std::string LessThan::function_description(){
 }
 
 bool LessThan::calculate(){
-  double weight=getAction()->getElementValue(1);
+  double weight=getAction()->getElementValue(wnum);
   plumed_dbg_assert( weight>=getTolerance() );
 
   double val=getAction()->getElementValue(0);
@@ -63,7 +64,7 @@ bool LessThan::calculate(){
   bool addval=addValueUsingTolerance(0,contr);
   if(addval){ 
     getAction()->chainRuleForElementDerivatives(0, 0, weight*dval, this);
-    if(diffweight) getAction()->chainRuleForElementDerivatives(0, 1, f, this);
+    if(diffweight) getAction()->chainRuleForElementDerivatives(0, wnum, f, this);
   }
   return ( contr>getNLTolerance() ); 
 }
@@ -74,8 +75,8 @@ void LessThan::finish(){
   mergeFinalDerivatives( df );
 }
 
-double LessThan::getCutoff( const double& tol ){
-  return sf.inverse( tol );
+double LessThan::getCutoff(){
+  return sf.get_dmax();
 }
 
 }
