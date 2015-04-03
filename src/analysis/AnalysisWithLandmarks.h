@@ -35,6 +35,7 @@ class LandmarkSelectionBase;
 class AnalysisWithLandmarks : public Analysis {
 friend class LandmarkSelectionBase;
 friend class CopyAllFrames;
+friend class SelectRandomFrames;
 private:
 /// This object selects landmarks from the data
   LandmarkSelectionBase* landmarkSelector;

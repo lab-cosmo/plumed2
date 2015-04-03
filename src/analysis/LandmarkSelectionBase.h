@@ -41,6 +41,7 @@ public:
 class LandmarkSelectionBase {
 friend class AnalysisWithLandmarks;
 friend class CopyAllFrames;
+friend class SelectRandomFrames;
 private:
 /// Name of the method we are using for landmark selection
   std::string style;

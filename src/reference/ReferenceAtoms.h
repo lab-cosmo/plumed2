@@ -139,7 +139,7 @@ Vector ReferenceAtoms::getReferencePosition( const unsigned& iatom ) const {
 }
 
 inline
-const std::vector<Vector> & ReferenceAtoms::getReferencePositions() const{
+const std::vector<Vector> & ReferenceAtoms::getReferencePositions() const {
   return reference_atoms;
 }
 
