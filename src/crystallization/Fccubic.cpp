@@ -44,7 +44,7 @@ private:
   double rcut2, alpha, a1, b1;
   double phi, theta, psi;
   double rotationmatrix[3][3]; 
-  std::valarray<Vector> dlist; // A buffer array to store distances and apply PBC wholesale
+  std::vector<Vector> dlist; // A buffer array to store distances and apply PBC wholesale
   
   SwitchingFunction switchingFunction;
 public:

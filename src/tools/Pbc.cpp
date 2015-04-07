@@ -155,7 +155,7 @@ double Pbc::distance( const bool pbc, const Vector& v1, const Vector& v2 ) const
   else{ return ( delta(v1,v2) ).modulo(); }
 }
 
-void Pbc::apply(std::valarray<Vector>& dlist, unsigned max_index) const {
+void Pbc::apply(std::vector<Vector>& dlist, unsigned max_index) const {
    if (max_index==0) max_index=dlist.size();
    if(type==unset){
   } else if(type==orthorombic) {
@@ -172,7 +172,7 @@ void Pbc::apply(std::valarray<Vector>& dlist, unsigned max_index) const {
    for(unsigned k=0;k<max_index;++k) for(int i=0;i<3;i++) dlist[k][i]=Tools::pbc(dlist[k][i]*invBox(i,i))*box(i,i);
 #endif
   } else if(type==generic) {
-   plumed_merror("apply pbc with generic cell is not implemented");
+   plumed_merror("vectorized apply pbc with generic cell is not implemented");
   } else plumed_merror("unknown pbc type");
 }
 
