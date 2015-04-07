@@ -28,7 +28,7 @@
 namespace PLMD {
 namespace analysis {
 
-//+PLUMEDOC ANALYSIS LANDMARK_SELECT
+//+PLUMEDOC ANALYSIS LANDMARK_SELECTOR
 /*
 Just select landmarks and outputs them to a file.
 
@@ -52,7 +52,7 @@ LANDMARK_SELECT ...
 class LandmarkSelector : public AnalysisWithLandmarks {
 private:  
   MultiReferenceBase *mydata;
-  std::string ofilename;
+  std::string dlfilename;
 public:
   static void registerKeywords( Keywords& keys );
   LandmarkSelector( const ActionOptions& ao );
@@ -64,7 +64,7 @@ PLUMED_REGISTER_ACTION(LandmarkSelector,"LANDMARK_SELECT")
 
 void LandmarkSelector::registerKeywords( Keywords& keys ){
   AnalysisWithLandmarks::registerKeywords( keys );
-  keys.add("compulsory","OUTPUT_FILE","file on which to output the final embedding coordinates");  
+  keys.add("compulsory","DUMP_LANDMARKS","dont output", "file on which to dump the selected landmarks");  
 }
 
 LandmarkSelector::LandmarkSelector( const ActionOptions& ao ):
@@ -73,7 +73,7 @@ AnalysisWithLandmarks(ao)
 {  
   mydata = new MultiReferenceBase( getMetricName(), false );
   setDataToAnalyze( mydata );
-  parseOutputFile("OUTPUT_FILE",ofilename);
+  parseOutputFile("DUMP_LANDMARKS",dlfilename);
 }
 
 LandmarkSelector::~LandmarkSelector(){
@@ -83,13 +83,14 @@ void LandmarkSelector::analyzeLandmarks(){
   OFile gfile; gfile.link(*this); 
   gfile.setBackupString("analysis");
   gfile.fmtField(getOutputFormat()+" ");
-  gfile.open( ofilename.c_str() );
-  gfile <<this->getNumberOfLandmarks()<< " hello\n";
+  if( dlfilename!="dont output"){
+  gfile.open( dlfilename.c_str() );  
   unsigned M=mydata->getNumberOfReferenceFrames(); 
   for(unsigned i=0; i<M; ++i){
      mydata->getFrame(i)->print(gfile, "random string");
      }  
   gfile.close();
+ }
 }
 
 }
