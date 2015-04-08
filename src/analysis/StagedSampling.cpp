@@ -45,12 +45,12 @@ LandmarkSelectionBase(lo)
 void StagedSampling::select( MultiReferenceBase* myframes ){
   unsigned int n = getNumberOfLandmarks(); //Only one call to such functions.
   unsigned int N = getNumberOfFrames();
-  unsigned int m = (int)sqrt(n*N);
+  unsigned int m = (int)sqrt(n*N);   // this should be the default but perhaps we should have and option
   std::vector<unsigned> fpslandmarks(m);
   // Select first point at random
   Random random; random.setSeed(-seed); double rand=random.RandU01();
   fpslandmarks[0] = std::floor( N*rand );
-
+//todo don't 
   //using FPS we want to find m landmarks where m = sqrt(nN)
   // Now find distance to all other points
   Matrix<double> distances( m, N );
@@ -72,9 +72,10 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
          
   }
    
-  int weights[m];
-  for(int i=0;i<m;i++) weights[i] = 1;
-  double mind_vor=999999999999;
+   
+  int weights[m];  
+  for(int i=0;i<m;i++) weights[i] = 1;   //!todo: probably frames can have weights, so these should be included
+  double mind_vor=999999999999;    //!TODO: make this clean and robust by starting with first point selected and mind set to d(p,0), and loop starts from 1
   int mind_index=0;
   //Now after selecting m landmarks we calculate vornoiweights.
   for(int i=0;i<N;i++){
@@ -90,12 +91,14 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
 	  weights[mind_index]++;
 	  mind_vor = 999999999999;
   }
+  
   //Calulate cumulative weights.
   int cum_weights[m];
   cum_weights[0] = weights[0];
   for(int i=1;i<m;i++){
 	  cum_weights[i] = cum_weights[i-1] + weights[i];
   }
+  
   //Calculate unique n random sampling from this .
   bool selected[m];
   for (int i=0;i<m;i++) selected[i]=false;
@@ -112,8 +115,12 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
                           selected[j+1]=true;
                           ncount++;
                           flag=1;
-			  break;
+			
+           //!todo: reaally select one random point from the selected voronoi polyhedron
+           break;
 		  }
+        
+        //! todo check this is really necessary (hint: no) - the point gets assigned to one of the boundaries depending  
 //  in case our random weight falls in the border of two blocks
 
 		  if(rand_ind - cum_weights[j] == 0 && !selected[j]) {
