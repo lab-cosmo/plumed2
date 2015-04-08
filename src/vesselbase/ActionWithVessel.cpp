@@ -26,6 +26,7 @@
 #include "StoreDataVessel.h"
 #include "VesselRegister.h"
 #include "BridgeVessel.h"
+#include "GridVesselBase.h"
 #include "FunctionVessel.h"
 
 using namespace std;
@@ -77,8 +78,8 @@ ActionWithVessel::ActionWithVessel(const ActionOptions&ao):
   if( tolerance>epsilon){
      if( keywords.exists("NL_TOL") ) parse("NL_TOL",nl_tolerance);
      if( nl_tolerance>tolerance ) error("NL_TOL must be smaller than TOL"); 
-     log.printf(" Ignoring contributions less than %f",tolerance);
-     if( nl_tolerance>epsilon ) log.printf(" and ignoring quantities less than %f inbetween neighbor list update steps\n",nl_tolerance);
+     log.printf("  ignoring contributions less than %lf",tolerance);
+     if( nl_tolerance>epsilon ) log.printf(" and ignoring quantities less than %lf inbetween neighbor list update steps\n",nl_tolerance);
      else log.printf("\n");
   }
 }
@@ -247,7 +248,7 @@ void ActionWithVessel::deactivate_task(){
 }
 
 void ActionWithVessel::deactivateTasksInRange( const unsigned& lower, const unsigned& upper ){
-  plumed_dbg_assert( contributorsAreUnlocked && lower<upper && upper<taskFlags.size() );
+  plumed_dbg_assert( contributorsAreUnlocked && lower<upper && upper<=taskFlags.size() );
   for(unsigned i=lower;i<upper;++i) taskFlags[i]=1;
 }
 
@@ -343,6 +344,8 @@ void ActionWithVessel::finishComputations(){
 void ActionWithVessel::chainRuleForElementDerivatives( const unsigned& iout, const unsigned& ider, const double& df, Vessel* valout ){
   if( noderiv ) return;
   current_buffer_stride=1;
+  // Factor of 1 added here is so that we are not adding to the value which is stored in the first
+  // element of the buffer.
   current_buffer_start=valout->bufstart + (getNumberOfDerivatives()+1)*iout + 1;
   mergeDerivatives( ider, df );
 } 
@@ -352,6 +355,8 @@ void ActionWithVessel::chainRuleForElementDerivatives( const unsigned& iout, con
   if( noderiv ) return;
   plumed_dbg_assert( off<stride );
   current_buffer_stride=stride;
+  // Factor of stride added here is so that we are not adding to the value which is stored in the first
+  // element of the buffer.
   current_buffer_start=valout->bufstart + stride*(getNumberOfDerivatives()+1)*iout + stride + off;
   mergeDerivatives( ider, df );
 }
@@ -393,6 +398,39 @@ Vessel* ActionWithVessel::getVesselWithName( const std::string& mynam ){
      }  
   }
   return functions[target];
+}
+
+void ActionWithVessel::dumpCheckPointFile( OFile& cfile ){
+  cfile.printf("BEGIN ACTION: TYPE=%s LABEL=%s \n",getName().c_str(),getLabel().c_str() );
+  for(unsigned i=0;i<functions.size();++i){
+     GridVesselBase* gv = dynamic_cast<GridVesselBase*>( functions[i] );
+     if(gv) gv->writeToCheckpoint( cfile );
+  }
+  cfile.printf("END ACTION: TYPE=%s LABEL=%s \n",getName().c_str(),getLabel().c_str() );
+}
+
+void ActionWithVessel::restartFromCheckPointFile( IFile& cifile ){
+  // Check first line
+  std::vector<std::string> words; Tools::getParsedLine(cifile,words);
+  if( words[0]!="BEGIN" && words[1]!="ACTION:" ) error("failed to read in checkpoint file correctly");
+  std::string atype; Tools::parse(words, "TYPE" , atype );
+  if( atype!=getName() ) error("mismatch for action type in checkpoint file");
+  std::string alab; Tools::parse(words, "LABEL", alab );
+  if( alab!=getLabel() ) error("mismatch for action label in checkpoint file");
+
+  for(unsigned i=0;i<functions.size();++i){
+     GridVesselBase* gv = dynamic_cast<GridVesselBase*>( functions[i] );
+     if(gv) gv->readFromCheckpoint( cifile );
+  }
+
+  // Check last line
+  Tools::getParsedLine(cifile,words);
+  if( words[0]!="END" && words[1]!="ACTION:" ) error("bad data in checkpoint file");
+  Tools::parse(words, "TYPE" , atype );
+  if( atype!=getName() ) error("mismatch for action type in finish of checkpoint file");
+  Tools::parse(words, "NAME", alab );
+  if( alab!=getLabel() ) error("mismatch for action name in finish of checkpoint file");
+
 }
 
 }

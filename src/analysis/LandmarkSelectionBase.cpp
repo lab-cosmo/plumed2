@@ -41,7 +41,7 @@ action(lo.action)
       novoronoi=true;
   } else {
       parse("N",nlandmarks);
-      parseFlag("NOVORONOI",novoronoi);
+      novoronoi=false; parseFlag("NOVORONOI",novoronoi);
   }
   parseFlag("IGNORE_WEIGHTS",noweights);
 }
@@ -66,8 +66,7 @@ std::string LandmarkSelectionBase::description(){
   if( style=="ALL"){
      ostr<<"using all data";
   } else {
-     ostr<<"selecting "<<nlandmarks<<" using "<<style<<" algorithm to analyze\n";
-     ostr<<"  "<<rest_of_description()<<"\n";
+     ostr<<"selecting "<<nlandmarks<<" landmarks using "<<style<<" algorithm to analyze\n";
      if(noweights) ostr<<"  ignoring all reweighting of data during landmark selection\n";
      if(novoronoi) ostr<<"  voronoi weights will not be ascribed to points\n";
   }
@@ -79,12 +78,12 @@ double LandmarkSelectionBase::getWeightOfFrame( const unsigned& iframe ){
   return action->getWeight(iframe);
 }
 double LandmarkSelectionBase::getDistanceBetweenFrames( const unsigned& iframe, const unsigned& jframe  ){
-  return distance( action->getPbc(), action->getArguments(), action->data[iframe], action->data[jframe], false );
+  return distance( action->getPbc(), action->getArguments(), action->getReferenceConfiguration(iframe), action->getReferenceConfiguration(jframe), false );
 }
 
 void LandmarkSelectionBase::selectFrame( const unsigned& iframe, MultiReferenceBase* myframes){
   plumed_assert( myframes->getNumberOfReferenceFrames()<nlandmarks );
-  myframes->copyFrame( action->data[iframe] );
+  myframes->copyFrame( action->getReferenceConfiguration(iframe) );
 }
 
 void LandmarkSelectionBase::selectLandmarks( MultiReferenceBase* myframes ){
@@ -97,11 +96,11 @@ void LandmarkSelectionBase::selectLandmarks( MultiReferenceBase* myframes ){
       unsigned rank=action->comm.Get_rank();
       unsigned size=action->comm.Get_size();
       std::vector<double> weights( nlandmarks, 0.0 );
-      for(unsigned i=rank;i<action->data.size();i+=size){
+      for(unsigned i=rank;i<action->getNumberOfDataPoints();i+=size){
           unsigned closest=0;
-          double mindist=distance( action->getPbc(), action->getArguments(), action->data[i], myframes->getFrame(0), false );
+          double mindist=distance( action->getPbc(), action->getArguments(), action->getReferenceConfiguration(i), myframes->getFrame(0), false );
           for(unsigned j=1;j<nlandmarks;++j){
-              double dist=distance( action->getPbc(), action->getArguments(), action->data[i], myframes->getFrame(j), false );
+              double dist=distance( action->getPbc(), action->getArguments(), action->getReferenceConfiguration(i), myframes->getFrame(j), false );
               if( dist<mindist ){ mindist=dist; closest=j; }
           } 
           weights[closest] += getWeightOfFrame(i);

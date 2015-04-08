@@ -47,7 +47,7 @@
 
 using namespace std;
 
-enum { SETBOX, SETPOSITIONS, SETMASSES, SETCHARGES, SETPOSITIONSX, SETPOSITIONSY, SETPOSITIONSZ, SETVIRIAL, SETENERGY, SETFORCES, SETFORCESX, SETFORCESY, SETFORCESZ, CALC, PREPAREDEPENDENCIES, SHAREDATA, PREPARECALC, PERFORMCALC, SETSTEP, SETSTEPLONG, SETATOMSNLOCAL, SETATOMSGATINDEX, SETATOMSFGATINDEX, SETATOMSCONTIGUOUS, CREATEFULLLIST, GETFULLLIST, CLEARFULLLIST, READ, CLEAR, GETAPIVERSION, INIT, SETREALPRECISION, SETMDLENGTHUNITS, SETMDENERGYUNITS, SETMDTIMEUNITS, SETNATURALUNITS, SETNOVIRIAL, SETPLUMEDDAT, SETMPICOMM, SETMPIFCOMM, SETMPIMULTISIMCOMM, SETNATOMS, SETTIMESTEP, SETMDENGINE, SETLOG, SETLOGFILE, SETSTOPFLAG, GETEXCHANGESFLAG, SETEXCHANGESSEED, SETNUMBEROFREPLICAS, GETEXCHANGESLIST, RUNFINALJOBS, ISENERGYNEEDED, GETBIAS, SETKBT };
+enum { SETBOX, SETPOSITIONS, SETMASSES, SETCHARGES, SETPOSITIONSX, SETPOSITIONSY, SETPOSITIONSZ, SETVIRIAL, SETENERGY, SETFORCES, SETFORCESX, SETFORCESY, SETFORCESZ, CALC, PREPAREDEPENDENCIES, SHAREDATA, PREPARECALC, PERFORMCALC, SETSTEP, SETSTEPLONG, SETATOMSNLOCAL, SETATOMSGATINDEX, SETATOMSFGATINDEX, SETATOMSCONTIGUOUS, CREATEFULLLIST, GETFULLLIST, CLEARFULLLIST, READ, CLEAR, GETAPIVERSION, INIT, SETREALPRECISION, SETMDLENGTHUNITS, SETMDENERGYUNITS, SETMDTIMEUNITS, SETNATURALUNITS, SETNOVIRIAL, SETPLUMEDDAT, SETMPICOMM, SETMPIFCOMM, SETMPIMULTISIMCOMM, SETNATOMS, SETTIMESTEP, SETMDENGINE, SETLOG, SETLOGFILE, SETSTOPFLAG, GETEXCHANGESFLAG, SETEXCHANGESSEED, SETNUMBEROFREPLICAS, GETEXCHANGESLIST, RUNFINALJOBS, ISENERGYNEEDED, GETBIAS, SETKBT, WRITECHECKPOINTFILE };
 
 namespace PLMD{
 
@@ -134,6 +134,7 @@ PlumedMain::PlumedMain():
   word_map["isEnergyNeeded"]=ISENERGYNEEDED;
   word_map["getBias"]=GETBIAS;
   word_map["setKbT"]=SETKBT;
+  word_map["writeCheckPointFile"]=WRITECHECKPOINTFILE;
 }
 
 PlumedMain::~PlumedMain(){
@@ -163,7 +164,6 @@ PlumedMain::~PlumedMain(){
 void PlumedMain::cmd(const std::string & word,void*val){
 
   stopwatch.start();
-
   std::vector<std::string> words=Tools::getWords(word);
   unsigned nw=words.size();
   if(nw==1) {
@@ -288,6 +288,10 @@ void PlumedMain::cmd(const std::string & word,void*val){
       case CLEARFULLLIST:
         CHECK_INIT(initialized,word);
         atoms.clearFullList();
+        break;
+      case WRITECHECKPOINTFILE:
+        CHECK_INIT(initialized,word);
+        writeCheckPointFile();
         break;
       case READ:
         CHECK_INIT(initialized,word);
@@ -482,6 +486,18 @@ void PlumedMain::init(){
     readInputFile(plumedDat);
     plumedDat="";
   }
+  // Setup checkpoint file
+  cfile.link(*this); cfile.open("plumed_state.itp"); firstcheckdone=false;
+  // Read in checkpoint file for restart
+  if( getRestart() ){
+      IFile cifile; cifile.link(*this); cifile.open("plumed_state.itp");
+      for(ActionSet::iterator p=actionSet.begin();p!=actionSet.end();++p){
+          (*p)->restartFromCheckPointFile( cifile );
+      }
+      cifile.close();
+      firstcheckdone=true; // This ensures old restart file is backed up
+  }
+
   atoms.updateUnits();
   log.printf("Timestep: %f\n",atoms.getTimeStep());
   if(atoms.getKbT()>0.0)
@@ -506,8 +522,7 @@ void PlumedMain::readInputFile(std::string str){
   exchangePatterns.setFlag(exchangePatterns.NONE);
   while(Tools::getParsedLine(ifile,words) && words[0]!="ENDPLUMED") readInputWords(words);
   log.printf("END FILE: %s\n",str.c_str());
-  log.flush();	
-
+  log.flush();
   pilots=actionSet.select<ActionPilot*>();
 }
 
@@ -792,6 +807,19 @@ void PlumedMain::runJobsAtEndOfCalculation(){
   for(ActionSet::iterator p=actionSet.begin();p!=actionSet.end();++p){
       (*p)->runFinalJobs();
   }
+}
+
+void PlumedMain::writeCheckPointFile(){
+  // Rewind auomatically backs up previous check point files
+  if(firstcheckdone) cfile.rewind();
+
+  // Write everything to checkpoint file
+  for(ActionSet::iterator p=actionSet.begin();p!=actionSet.end();++p){
+      (*p)->dumpCheckPointFile( cfile ); 
+  }
+  firstcheckdone=true;
+  // Flush the checkpoint file
+  cfile.flush();
 } 
 
 }

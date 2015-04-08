@@ -52,10 +52,10 @@ protected:
 public:
   static void registerKeywords( Keywords& keys );
   ActionVolume(const ActionOptions&);
-/// Get the number of quantities that are calculated each time
-  virtual unsigned getNumberOfQuantities();
 /// Calculate whats in the volume
   void calculateAllVolumes();
+/// Get the number of quantities that are calculated each time
+  virtual unsigned getNumberOfQuantities();
   virtual double calculateNumberInside( const Vector& cpos, HistogramBead& bead, Vector& derivatives )=0;
   double getValueForTolerance();
   unsigned getIndexOfWeight();

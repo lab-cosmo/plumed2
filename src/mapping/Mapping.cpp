@@ -96,7 +96,8 @@ ActionWithVessel(ao)
   if(nfram==0 ) error("no reference configurations were specified");
   log.printf("  found %u configurations in file %s\n",nfram,reference.c_str() );
   for(unsigned i=0;i<weights.size();++i) weights[i] /= wnorm;
-  mymap->setWeights( weights );
+  frameWasCalculated.resize( nfram ); mymap->setWeights( weights );
+  distances.resize( nfram );
 
   // Finish the setup of the mapping object
   // Get the arguments and atoms that are required
@@ -123,6 +124,11 @@ void Mapping::turnOnDerivatives(){
   needsDerivatives();
 } 
 
+void Mapping::needsDerivatives(){
+  ActionWithValue::turnOnDerivatives();
+  ActionWithVessel::needsDerivatives(); 
+}
+
 Mapping::~Mapping(){
   delete mymap;
 }
@@ -145,6 +151,8 @@ void Mapping::prepare(){
       // Resize forces array
       forcesToApply.resize( 3*getNumberOfAtoms() + 9 + getNumberOfArguments() );
   }
+  // Keep track of the fact that none of the distances were calculated
+  for(unsigned i=0;i<frameWasCalculated.size();++i) frameWasCalculated[i]=false;
 }
 
 unsigned Mapping::getPropertyIndex( const std::string& name ) const {
@@ -166,10 +174,12 @@ std::string Mapping::getArgumentName( unsigned& iarg ){
 } 
 
 double Mapping::calculateDistanceFunction( const unsigned& ifunc, const bool& squared ){
+  // Note that frame was calculated
+  frameWasCalculated[ifunc]=true;
   // Calculate the distance
-  double dd = mymap->calcDistanceFromConfiguration( ifunc, getPositions(), getPbc(), getArguments(), squared );     
+  distances[ifunc] = mymap->calcDistanceFromConfiguration( ifunc, getPositions(), getPbc(), getArguments(), squared );     
   // Transform distance by whatever
-  fframes[ifunc]=transformHD( dd, dfframes[ifunc] );
+  fframes[ifunc]=transformHD( distances[ifunc], dfframes[ifunc] );
   return fframes[ifunc];
 }
 
@@ -192,20 +202,20 @@ void Mapping::calculateNumericalDerivatives( ActionWithValue* a ){
 void Mapping::mergeDerivatives( const unsigned& ider, const double& df ){
   unsigned cur = getCurrentTask(), frameno=ider*getNumberOfReferencePoints() + cur;
   for(unsigned i=0;i<getNumberOfArguments();++i){
-      accumulateDerivative( i, df*dfframes[frameno]*mymap->getArgumentDerivative(cur,i) );
+      accumulateDerivative( i, df*dfframes[frameno]*mymap->getArgumentDerivative(frameno,i) );
   }
   if( getNumberOfAtoms()>0 ){
       Vector ader; Tensor tmpvir; tmpvir.zero();
       unsigned n=getNumberOfArguments(); 
       for(unsigned i=0;i<getNumberOfAtoms();++i){
-          ader=mymap->getAtomDerivatives( cur, i );            
+          ader=mymap->getAtomDerivatives( frameno, i );            
           accumulateDerivative( n, df*dfframes[frameno]*ader[0] ); n++;
           accumulateDerivative( n, df*dfframes[frameno]*ader[1] ); n++;
           accumulateDerivative( n, df*dfframes[frameno]*ader[2] ); n++;
           tmpvir += -1.0*Tensor( getPosition(i), ader );
       }
       Tensor vir; 
-      if( !mymap->getVirial( cur, vir ) ) vir=tmpvir;
+      if( !mymap->getVirial( frameno, vir ) ) vir=tmpvir;
       accumulateDerivative( n, df*dfframes[frameno]*vir(0,0) ); n++;
       accumulateDerivative( n, df*dfframes[frameno]*vir(0,1) ); n++;
       accumulateDerivative( n, df*dfframes[frameno]*vir(0,2) ); n++;
@@ -224,6 +234,41 @@ void Mapping::apply(){
      if( getNumberOfAtoms()>0 ) setForcesOnAtoms( forcesToApply, getNumberOfArguments() );
   }
 }
+
+void Mapping::findClosestPoint( std::vector<double>& pp ) const {
+  plumed_dbg_assert( pp.size()==getNumberOfProperties() );
+#ifndef NDEBUG
+  for(unsigned i=0;i<getNumberOfReferencePoints();++i) plumed_dbg_assert( frameWasCalculated[i] );
+#endif
+  double mindist=distances[0]; unsigned refp=0;
+  for(unsigned i=1;i<getNumberOfReferencePoints();++i){
+     if( distances[i]<mindist ){ refp=i; mindist=distances[i]; }
+  }
+  for(unsigned i=0;i<pp.size();++i) pp[i] = mymap->getPropertyValue( refp, i );
+}
+
+double Mapping::calculateStress( const std::vector<double>& pp, std::vector<double>& der ){
+  plumed_dbg_assert( pp.size()==getNumberOfProperties() && der.size()==getNumberOfProperties() );
+#ifndef NDEBUG
+  for(unsigned i=0;i<getNumberOfReferencePoints();++i) plumed_dbg_assert( frameWasCalculated[i] );
+#endif
+  std::vector<double> tmpder( getNumberOfProperties() );
+  double df, chi2=0.0; der.assign(der.size(),0.0);
+  for(unsigned i=0;i<getNumberOfReferencePoints();++i){
+     double dist=0.0;
+     for(unsigned j=0;j<getNumberOfProperties();++j){
+         tmpder[j] = pp[j] - mymap->getPropertyValue( i, j );
+         dist += tmpder[j]*tmpder[j];
+     }
+     dist=transformLD( sqrt(dist), df );
+     double tmp = fframes[i] - dist; 
+     // Accumulate the stress 
+     chi2 += mymap->getWeight(i)*tmp*tmp;
+     // Accumulate the derivatives
+     for(unsigned j=0;j<getNumberOfProperties();++j) der[j] += 2*mymap->getWeight(i)*tmp*df*tmpder[j];
+  }
+  return chi2;
+} 
 
 }
 }
