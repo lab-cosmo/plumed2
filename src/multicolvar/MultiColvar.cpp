@@ -367,14 +367,18 @@ void MultiColvar::calculate(){
 void MultiColvar::updateActiveAtoms(){
   if( atoms_with_derivatives.updateComplete() ) return;
   atoms_with_derivatives.emptyActiveMembers();
-  for(unsigned i=0;i<getNAtoms();++i) atoms_with_derivatives.updateIndex( current_atoms[i] );
+  unsigned nat=getNAtoms();
+  for(unsigned i=0;i<nat;++i) 
+    atoms_with_derivatives.updateIndex( current_atoms[i] );
   atoms_with_derivatives.sortActiveList();
 }
 
 Vector MultiColvar::calculateCentralAtomPosition(){
   Vector catom=getCentralAtom();
   atomsWithCatomDer.emptyActiveMembers();
-  for(unsigned i=0;i<getNAtoms();++i) atomsWithCatomDer.updateIndex( current_atoms[i] );
+  unsigned nat=getNAtoms();
+  for(unsigned i=0;i<nat;++i) 
+    atomsWithCatomDer.updateIndex( current_atoms[i] );
   atomsWithCatomDer.sortActiveList();
   return catom;
 }

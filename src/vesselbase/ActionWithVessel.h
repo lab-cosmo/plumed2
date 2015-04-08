@@ -70,7 +70,7 @@ private:
 /// The buffers we use for mpi summing DistributionFunction objects
   unsigned current_buffer_start;
   unsigned current_buffer_stride;
-  std::vector<double> buffer;
+  std::vector<double> buffer; 
 /// Pointers to the functions we are using on each value
   std::vector<Vessel*> functions;
 /// Tempory storage for forces
@@ -288,7 +288,9 @@ void ActionWithVessel::setElementDerivative( const unsigned& ider, const double&
 inline
 void ActionWithVessel::accumulateDerivative( const unsigned& ider, const double& der ){
   plumed_dbg_assert( ider<getNumberOfDerivatives() );
-  buffer[current_buffer_start + current_buffer_stride*ider] += der;
+  //std::cerr<<current_buffer_start<<","<<current_buffer_stride<<","<<ider<<","<<der<<std::endl;
+  //buffer[current_buffer_start + current_buffer_stride*ider] += der;
+  buffer[current_buffer_start+ider] += der;
 }
 
 inline

@@ -358,8 +358,8 @@ void ActionWithVessel::chainRuleForElementDerivatives( const unsigned& iout, con
 
 void ActionWithVessel::mergeDerivatives( const unsigned& ider, const double& df ){
   unsigned nder=getNumberOfDerivatives(), vstart=nder*ider; 
-  for(unsigned i=0;i<getNumberOfDerivatives();++i){
-     accumulateDerivative( i, df*derivatives[vstart+i] ); 
+  for(unsigned i=0;i<nder;++i){
+     accumulateDerivative( i, df*derivatives[vstart] ); ++vstart;
   }
 }
 

@@ -253,7 +253,7 @@ double SwitchingFunction::calculateSqr(double distance2,double&dfunc)const{
   }
 }
 
-double SwitchingFunction::calculate(double distance,double&dfunc)const{
+double SwitchingFunction::calculate(double distance, double& dfunc) const {
   plumed_massert(init,"you are trying to use an unset SwitchingFunction");
   if(distance>dmax){
     dfunc=0.0;

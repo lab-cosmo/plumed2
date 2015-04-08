@@ -333,15 +333,16 @@ void MultiColvarBase::quotientRule( const unsigned& uder, const unsigned& vder, 
 
 void MultiColvarBase::mergeDerivatives( const unsigned& ider, const double& df ){
   unsigned vstart=getNumberOfDerivatives()*ider;
-  for(unsigned i=0;i<atoms_with_derivatives.getNumberActive();++i){
+  unsigned gna=atoms_with_derivatives.getNumberActive();
+  for(unsigned i=0;i<gna;++i){
      unsigned iatom=3*atoms_with_derivatives[i];
-     accumulateDerivative( iatom, df*getElementDerivative(vstart+iatom) ); iatom++;
-     accumulateDerivative( iatom, df*getElementDerivative(vstart+iatom) ); iatom++;
+     accumulateDerivative( iatom, df*getElementDerivative(vstart+iatom) ); ++iatom;
+     accumulateDerivative( iatom, df*getElementDerivative(vstart+iatom) ); ++iatom;
      accumulateDerivative( iatom, df*getElementDerivative(vstart+iatom) );
   }
-  unsigned nvir=3*getNumberOfAtoms();
+  unsigned nvir=3*getNumberOfAtoms(); vstart+=nvir; 
   for(unsigned j=0;j<9;++j){
-     accumulateDerivative( nvir, df*getElementDerivative(vstart+nvir) ); nvir++;
+     accumulateDerivative( nvir, df*getElementDerivative(vstart) ); ++nvir; ++vstart;
   }
 }
 

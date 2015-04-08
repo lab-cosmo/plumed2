@@ -153,21 +153,26 @@ double Fccubic::compute(){
    double value=0, norm=0, dfunc; Vector rotatedis;
 
    // Calculate the coordination number
-   Vector myder, rotateder, fder;
-   double sw, t0, t1, t2, t3, x2, x4, y2, y4, z2, z4, r8, r12, tmp;
+   Vector myder, rotateder, fder; 
+   double sw, t0, t1, t2, t3, x2, x4, y2, y4, z2, z4, r4, r8, r12, air12, xy4, xz4, yz4, xyz4, tmp;
+   unsigned nat=getNAtoms();
    
    //std::valarray<Vector> dlist(getPosition(0),getNAtoms());
    if (getNAtoms()>dlist.size()) dlist.resize(getNAtoms());
-   for(unsigned i=1;i<getNAtoms();++i) dlist[i]=getPosition(i)-getPosition(0);
-   applyPbc( dlist, getNAtoms() );
+   for(unsigned i=1;i<nat;++i) dlist[i]=getPosition(i)-getPosition(0);
+   applyPbc( dlist, nat );
    
    double d2; 
-   for(unsigned i=1;i<getNAtoms();++i){
+   for(unsigned i=1;i<nat;++i){
       Vector& distance=dlist[i]; 
       
       if ( (d2=distance[0]*distance[0])<rcut2 && 
            (d2+=distance[1]*distance[1])<rcut2 &&
            (d2+=distance[2]*distance[2])<rcut2) {
+         
+         r4 = d2*d2;         
+         r8 = r4*r4;
+         r12 = r8*r4;
            
          sw = switchingFunction.calculateSqr( d2, dfunc ); 
    
@@ -190,17 +195,19 @@ double Fccubic::compute(){
          y4 = y2*y2;
 
          z2 = rotatedis[2]*rotatedis[2];
-         z4 = z2*z2;
-                 
-         r8 = pow( d2, 4 );
-         r12 = pow( d2, 6 );
+         z4 = z2*z2;      
 
-         tmp = ((x4*y4)+(x4*z4)+(y4*z4))/r8-alpha*x4*y4*z4/r12;
+         xy4 = x4*y4; xz4 = x4*z4; yz4 = y4*z4;
+         xyz4 = xy4*z4;  
+         air12 = alpha/r12;
+         
+         tmp = ((xy4)+(xz4)+(yz4))/r8-xyz4*air12;
+         t3 = (2*tmp-xyz4*air12)/d2;         
 
-         t0 = (x2*y4+x2*z4)/r8-alpha*x2*y4*z4/r12;
-         t1 = (y2*x4+y2*z4)/r8-alpha*y2*x4*z4/r12;
-         t2 = (z2*x4+z2*y4)/r8-alpha*z2*x4*y4/r12;
-         t3 = (2*tmp-alpha*x4*y4*z4/r12)/d2;         
+         t0 = (x2*y4+x2*z4)/r8-x2*yz4*air12;
+         t1 = (y2*x4+y2*z4)/r8-y2*xz4*air12;
+         t2 = (z2*x4+z2*y4)/r8-z2*xy4*air12;
+         
  
          rotateder[0]=4*rotatedis[0]*(t0-t3);
          rotateder[1]=4*rotatedis[1]*(t1-t3);

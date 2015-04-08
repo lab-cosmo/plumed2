@@ -105,23 +105,27 @@ Vector BridgedMultiColvarFunction::retrieveCentralAtomPos(){
 
 void BridgedMultiColvarFunction::mergeDerivatives( const unsigned& ider, const double& df ){
   unsigned vstart=getNumberOfDerivatives()*ider;
-  // Merge atom derivatives
-  for(unsigned i=0;i<atoms_with_derivatives.getNumberActive();++i){
-     unsigned iatom=3*atoms_with_derivatives[i];
+  unsigned gna=atoms_with_derivatives.getNumberActive();
+  unsigned iatom;
+  
+  // Merge atom derivatives  
+  for(unsigned i=0;i<gna;++i){
+     iatom=3*atoms_with_derivatives[i];
      accumulateDerivative( iatom, df*getElementDerivative(vstart+iatom) ); iatom++;
      accumulateDerivative( iatom, df*getElementDerivative(vstart+iatom) ); iatom++;
      accumulateDerivative( iatom, df*getElementDerivative(vstart+iatom) );
   }
-  // Merge virial derivatives
-  unsigned nvir=3*mycolv->getNumberOfAtoms();
+  // Merge virial derivatives      
+  unsigned nvir=3*mycolv->getNumberOfAtoms(); vstart += nvir;
   for(unsigned j=0;j<9;++j){
-     accumulateDerivative( nvir, df*getElementDerivative(vstart+nvir) ); nvir++;
+     accumulateDerivative( nvir, df*getElementDerivative(vstart) ); ++nvir; ++vstart;
   }
   // Merge local atom derivatives
-  for(unsigned j=0;j<getNumberOfAtoms();++j){
-     accumulateDerivative( nvir, df*getElementDerivative(vstart+nvir) ); nvir++;
-     accumulateDerivative( nvir, df*getElementDerivative(vstart+nvir) ); nvir++;
-     accumulateDerivative( nvir, df*getElementDerivative(vstart+nvir) ); nvir++;
+  unsigned nat=getNumberOfAtoms(); 
+  for(unsigned j=0;j<nat;++j){
+     accumulateDerivative( nvir, df*getElementDerivative(vstart) ); ++nvir; ++vstart;
+     accumulateDerivative( nvir, df*getElementDerivative(vstart) ); ++nvir; ++vstart;
+     accumulateDerivative( nvir, df*getElementDerivative(vstart) ); ++nvir; ++vstart;
   }
   plumed_dbg_assert( nvir==getNumberOfDerivatives() );
 }
