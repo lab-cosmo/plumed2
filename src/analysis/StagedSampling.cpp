@@ -47,16 +47,15 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
   unsigned int N = getNumberOfFrames();
   unsigned int m = (int)sqrt(n*N);   // this should be the default but perhaps we should have and option
   std::vector<unsigned> fpslandmarks(m);
+  for (unsigned i=0;i<m;++i) fpslandmarks[i]=0;
   // Select first point at random
   Random random; random.setSeed(-seed); double rand=random.RandU01();
   fpslandmarks[0] = std::floor( N*rand );
-//todo don't 
   //using FPS we want to find m landmarks where m = sqrt(nN)
-  // Now find distance to all other points
-  Matrix<double> distances( m, N );
-  for(unsigned int i=0;i<N;++i) {
-         distances(0,i) = getDistanceBetweenFrames( fpslandmarks[0], i );
-}
+  // Now find all other landmarks
+    Matrix<double> distances( m, N );
+  for(unsigned i=0;i<N;++i) distances(0,i) = getDistanceBetweenFrames( fpslandmarks[0], i );
+
   // Now find all other landmarks
   for(unsigned i=1;i<m;++i){
       // Find point that has the largest minimum distance from the landmarks selected thus far
@@ -68,20 +67,23 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
           }
           if( mind>maxd ){ maxd=mind; fpslandmarks[i]=j; }
       }
+      //selectFrame( landmarks[i], myframes );
       for(unsigned k=0;k<getNumberOfFrames();++k) distances(i,k) = getDistanceBetweenFrames( fpslandmarks[i], k );
-         
   }
+  
+ 
    
-   
+ // std::cout << "after FPS"<<std::endl;
   int weights[m];  
   for(int i=0;i<m;i++) weights[i] = 1;   //!todo: probably frames can have weights, so these should be included
-  double mind_vor=999999999999;    //!TODO: make this clean and robust by starting with first point selected and mind set to d(p,0), and loop starts from 1
   int mind_index=0;
   //Now after selecting m landmarks we calculate vornoiweights.
   for(int i=0;i<N;i++){
-	  for(int j=0;j<m;j++){
-                  if (i != j) {
-		  double tempd = getDistanceBetweenFrames(i,j);
+          double mind_vor=getDistanceBetweenFrames(fpslandmarks[0],i);
+	  for(int j=1;j<m;j++){
+                  if (i != fpslandmarks[j]) {
+                 // std::cout<<m<<","<<j<<","<<fpslandmarks[j]<<std::endl;
+		  double tempd = getDistanceBetweenFrames(fpslandmarks[j],i);
 		  if(tempd < mind_vor){
 			  mind_vor = tempd;
 			  mind_index = j;
@@ -89,7 +91,6 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
                    }
 	  }
 	  weights[mind_index]++;
-	  mind_vor = 999999999999;
   }
   
   //Calulate cumulative weights.
@@ -105,45 +106,22 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
   int ncount=0;
   while ( ncount<n){
   int flag =0;
+//  std::cout << "here"<<std::endl;
 // generate random weight and check which point it belongs to. select only it was not selected before
           double rand=random.RandU01();
 	  int rand_ind = std::floor( cum_weights[m-1]*rand );
 	  for(int j=m-2;j>=0;j--){
 		  if(rand_ind - cum_weights[j] > 0 && !selected[j+1] ) {
-			  selectFrame(j+1,myframes);
- //                         std::cout<<"selecting"<<j+1<<" frame"<<std::endl;
+			  selectFrame(fpslandmarks[j+1],myframes);
+  //                        std::cout<<"selecting"<<fpslandmarks[j+1]<<" frame"<<std::endl;
                           selected[j+1]=true;
                           ncount++;
                           flag=1;
-			
+		          break;	
            //!todo: reaally select one random point from the selected voronoi polyhedron
-           break;
-		  }
-        
-        //! todo check this is really necessary (hint: no) - the point gets assigned to one of the boundaries depending  
-//  in case our random weight falls in the border of two blocks
-
-		  if(rand_ind - cum_weights[j] == 0 && !selected[j]) {
-			  selectFrame(j,myframes);
-                          selected[j]=true;
-                          ncount++;
-                          flag=1;
-			  break;
 		  }
 	  }
-// if our random weight belongs to first sample
-         if(flag==0){
-			  selectFrame(0,myframes);
-                          selected[0]=true;
-                          ncount++;
-                     }
-                       
-         
   } 
-  
-	  
-		   
 }
-
 }
 }
