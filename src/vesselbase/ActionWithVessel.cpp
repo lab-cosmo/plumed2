@@ -351,6 +351,7 @@ void ActionWithVessel::chainRuleForElementDerivatives( const unsigned& iout, con
                                                        const unsigned& off, const double& df, Vessel* valout ){
   if( noderiv ) return;
   plumed_dbg_assert( off<stride );
+  plumed_merror( "STRIDE!=FUNCTIONALITY HAS BEEN SACRIFICED FOR SPEED...");
   current_buffer_stride=stride;
   current_buffer_start=valout->bufstart + stride*(getNumberOfDerivatives()+1)*iout + stride + off;
   mergeDerivatives( ider, df );
