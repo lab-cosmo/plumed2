@@ -102,7 +102,6 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
 	  cum_weights[i] = cum_weights[i-1] + weights[i];
   }
   
-std::cout<<"out 2"<<std::endl; 
   //Calculate unique n random sampling from this .
   
   std::vector<bool> selected(m);
@@ -120,7 +119,7 @@ std::cout<<"out 2"<<std::endl;
 			  double rand=random.RandU01();
 			  unsigned in = std::floor(k*rand);
 			  unsigned isel = lneighbours[j+1][in];
-			  std::cout<<" isel is"<<isel<<" ";
+			  //std::cout<<" isel is"<<isel<<" ";
 			  selectFrame(isel,myframes);
               selected[j+1]=true;
               ncount++;
