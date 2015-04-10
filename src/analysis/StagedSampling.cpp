@@ -76,7 +76,7 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
   std::vector<double> weights(m);  
   for(unsigned i=0;i<m;i++) {
 	  weights[i] = 1;   //!todo: probably frames can have weights, so these should be included
-	  lneighbours[i].push_back(i); // Each element has itself atleast in the neighbourhood.
+	  lneighbours[i].push_back(fpslandmarks[i]); // Each element has itself atleast in the neighbourhood.
   }
   int mind_index=0;
   //Now after selecting m landmarks we calculate vornoiweights.
@@ -88,8 +88,8 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
 		  if(tempd < mind_vor){
 			  mind_vor = tempd;
 			  mind_index = j;
-		   }
-        }
+		        }
+                 }
 	  }
 	  weights[mind_index]++;
 	  lneighbours[mind_index].push_back(i);
