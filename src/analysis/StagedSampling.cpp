@@ -72,22 +72,23 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
         //~ }
     //~ }
  
-  std::vector<unsigned> mdlist(N);
-  
+  std::vector<double> mdlist(N);
+//  m=30;  
   for(unsigned i=0;i<N;i++){ mdlist[i] = getDistanceBetweenFrames(fpslandmarks[0],i);}
-  unsigned maxd,maxj;
+  unsigned maxj;
+  double maxd;
   for(unsigned i=1;i<m;i++){
 	  maxd = 0.0;
 	  for(unsigned j=0;j<N;j++) if(mdlist[j] > maxd) {maxd = mdlist[j]; maxj = j;}
-	  
+//	  std::cout<<"maxj ="<<maxj<< " maxd="<<maxd<<std::endl;
 	  fpslandmarks[i] = maxj;
 	  for(unsigned j=0;j<N;j++){
-		  unsigned dij = getDistanceBetweenFrames(maxj,j);
+		  double dij = getDistanceBetweenFrames(maxj,j);
 		  if(mdlist[j] > dij) mdlist[j] = dij;
 	  }
   }
  
- 
+std::cout<<"out"<<std::endl; 
  
  
  
@@ -145,8 +146,9 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
 	  cum_weights[i] = cum_weights[i-1] + weights[i];
   }
   
+std::cout<<"out 2"<<std::endl; 
   //Calculate unique n random sampling from this .
-  std::vector<bool> selected(m);
+  std::vector<bool> selected(N);
   for (unsigned i=0;i<m;i++) selected[i]=false;
   unsigned ncount=0;
   while ( ncount<n){
