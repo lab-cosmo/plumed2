@@ -53,34 +53,14 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
   fpslandmarks[0] = std::floor( N*rand );
   //using FPS we want to find m landmarks where m = sqrt(nN)
  
- //Michele's method for finding landmarks.
- 
-     //~ else if (smode=="minmax") 
-    //~ {
-        //~ // farthest point sampling selection of the points. no risk on getting duplicates here
-        //~ 
-        //~ for (unsigned long i=1; i<n; ++i)
-        //~ {
-//~ 
-            //~ maxd=0.;  for (unsigned long j=0; j<N; ++j) if (mdlist[j]>maxd) {maxd=mdlist[j]; maxj=j;}
-            //~ std::cerr<<"selecting point "<<i<<" : "<<maxj<<"("<<maxd<<")\n";
-//~ 
-            //~ isel[i]=maxj;
-            //~ LP.row(i)=HP.row(maxj);
-            //~ for (unsigned long j=0; j<N; ++j) 
-            //~ { dij=metric->dist(&LP(i,0),&HP(j,0),D); if (mdlist[j]>dij) mdlist[j]=dij; }
-        //~ }
-    //~ }
- 
-  std::vector<double> mdlist(N);
-//  m=30;  
+
+  std::vector<double> mdlist(N); 
   for(unsigned i=0;i<N;i++){ mdlist[i] = getDistanceBetweenFrames(fpslandmarks[0],i);}
   unsigned maxj;
   double maxd;
   for(unsigned i=1;i<m;i++){
 	  maxd = 0.0;
 	  for(unsigned j=0;j<N;j++) if(mdlist[j] > maxd) {maxd = mdlist[j]; maxj = j;}
-//	  std::cout<<"maxj ="<<maxj<< " maxd="<<maxd<<std::endl;
 	  fpslandmarks[i] = maxj;
 	  for(unsigned j=0;j<N;j++){
 		  double dij = getDistanceBetweenFrames(maxj,j);
@@ -88,36 +68,12 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
 	  }
   }
  
-std::cout<<"out"<<std::endl; 
  
- 
- 
- 
- 
-  //~ // Now find all other landmarks
-    //~ Matrix<double> distances( m, N );
-  //~ for(unsigned i=0;i<N;++i) distances(0,i) = getDistanceBetweenFrames( fpslandmarks[0], i );
-//~ 
-  //~ // Now find all other landmarks
-  //~ for(unsigned i=1;i<m;++i){
-      //~ // Find point that has the largest minimum distance from the landmarks selected thus far
-      //~ double maxd=0;
-      //~ for(unsigned j=0;j<N;++j){
-          //~ double mind=distances(0,j);
-          //~ for(unsigned k=1;k<i;++k){
-              //~ if( distances(k,j)<mind ){ mind=distances(k,j); }
-          //~ }
-          //~ if( mind>maxd ){ maxd=mind; fpslandmarks[i]=j; }
-      //~ }
-      //~ //selectFrame( landmarks[i], myframes );
-      //~ for(unsigned k=0;k<getNumberOfFrames();++k) distances(i,k) = getDistanceBetweenFrames( fpslandmarks[i], k );
-  //~ }
-  
  
    
  // std::cout << "after FPS"<<std::endl;
   std::vector<std::vector<int> > lneighbours(m);
-  std::vector<int> weights(m);  
+  std::vector<double> weights(m);  
   for(unsigned i=0;i<m;i++) {
 	  weights[i] = 1;   //!todo: probably frames can have weights, so these should be included
 	  lneighbours[i].push_back(i); // Each element has itself atleast in the neighbourhood.
@@ -138,9 +94,9 @@ std::cout<<"out"<<std::endl;
 	  weights[mind_index]++;
 	  lneighbours[mind_index].push_back(i);
   }
-  
+  //for(int i=0;i<m;i++) std::cout<<fpslandmarks[i]<< " ";
   //Calulate cumulative weights.
-  std::vector<int> cum_weights(m);
+  std::vector<double> cum_weights(m);
   cum_weights[0] = weights[0];
   for(unsigned i=1;i<m;i++){
 	  cum_weights[i] = cum_weights[i-1] + weights[i];
@@ -148,7 +104,8 @@ std::cout<<"out"<<std::endl;
   
 std::cout<<"out 2"<<std::endl; 
   //Calculate unique n random sampling from this .
-  std::vector<bool> selected(N);
+  
+  std::vector<bool> selected(m);
   for (unsigned i=0;i<m;i++) selected[i]=false;
   unsigned ncount=0;
   while ( ncount<n){
@@ -158,11 +115,14 @@ std::cout<<"out 2"<<std::endl;
 	  int rand_ind = std::floor( cum_weights[m-1]*rand );
 	  for(int j=m-2;j>=0;j--){
 		  if(rand_ind - cum_weights[j] > 0 && !selected[j+1] ) {
-			  int k = lneighbours[fpslandmarks[j+1]].size();
+			  unsigned k = lneighbours[j+1].size();
+			  
 			  double rand=random.RandU01();
-			  int index_of_selection = std::floor(k*rand);
-			  selectFrame(index_of_selection,myframes);
-              selected[index_of_selection]=true;
+			  unsigned in = std::floor(k*rand);
+			  unsigned isel = lneighbours[j+1][in];
+			  std::cout<<" isel is"<<isel<<" ";
+			  selectFrame(isel,myframes);
+              selected[j+1]=true;
               ncount++;
 		      break;	
            //!todo: reaally select one random point from the selected voronoi polyhedron
