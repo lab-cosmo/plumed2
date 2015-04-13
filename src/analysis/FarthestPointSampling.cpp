@@ -43,31 +43,75 @@ LandmarkSelectionBase(lo)
 }
 
 void FarthestPointSampling::select( MultiReferenceBase* myframes ){
-  std::vector<unsigned> landmarks( getNumberOfLandmarks() );
+  
 
-  // Select first point at random
+  //~ fpslandmarks[0] = std::floor( N*rand );
+  //~ //using FPS we want to find m landmarks where m = sqrt(nN)
+ //~ 
+//~ 
+  //~ std::vector<double> mdlist(N); 
+  //~ for(unsigned i=0;i<N;i++){ mdlist[i] = getDistanceBetweenFrames(fpslandmarks[0],i);}
+  //~ unsigned maxj;
+  //~ double maxd;
+  //~ for(unsigned i=1;i<m;i++){
+	  //~ maxd = 0.0;
+	  //~ for(unsigned j=0;j<N;j++) if(mdlist[j] > maxd) {maxd = mdlist[j]; maxj = j;}
+	  //~ fpslandmarks[i] = maxj;
+	  //~ for(unsigned j=0;j<N;j++){
+		  //~ double dij = getDistanceBetweenFrames(maxj,j);
+		  //~ if(mdlist[j] > dij) mdlist[j] = dij;
+	  //~ }
+  //~ }
+  
+  unsigned N = getNumberOfFrames();
+  unsigned n = getNumberOfLandmarks();
+  
+  std::vector<unsigned> landmarks(n);
   Random random; random.setSeed(-seed); double rand=random.RandU01();
-  landmarks[0] = std::floor( getNumberOfFrames()*rand );
+  landmarks[0] = std::floor( N*rand );
   selectFrame( landmarks[0], myframes );
+  
 
-  // Now find distance to all other points
-  Matrix<double> distances( getNumberOfLandmarks(), getNumberOfFrames() );
-  for(unsigned i=0;i<getNumberOfFrames();++i) distances(0,i) = getDistanceBetweenFrames( landmarks[0], i );
+  std::vector<double>mdlist(N);
+  for(unsigned i=0;i<N;i++){ mdlist[i] = getDistanceBetweenFrames(landmarks[0],i);}
+  unsigned maxj;
+  double maxd;
+  for(unsigned i=1;i<n;i++){
+	  maxd = 0.0;
+	  for(unsigned j=0;j<N;j++) if(mdlist[j] > maxd) {maxd = mdlist[j]; maxj = j;}
+	  landmarks[i] = maxj;
+	  selectFrame(landmarks[i],myframes);
+	  for(unsigned j=0;j<N;j++){
+		  double dij = getDistanceBetweenFrames(maxj,j);
+		  if(mdlist[j] > dij) mdlist[j] = dij;
+	  }
+  }
 
-  // Now find all other landmarks
-  for(unsigned i=1;i<getNumberOfLandmarks();++i){
-      // Find point that has the largest minimum distance from the landmarks selected thus far
-      double maxd=0;
-      for(unsigned j=0;j<getNumberOfFrames();++j){
-          double mind=distances(0,j);
-          for(unsigned k=1;k<i;++k){
-              if( distances(k,j)<mind ){ mind=distances(k,j); }
-          }
-          if( mind>maxd ){ maxd=mind; landmarks[i]=j; }
-      }
-      selectFrame( landmarks[i], myframes );
-      for(unsigned k=0;k<getNumberOfFrames();++k) distances(i,k) = getDistanceBetweenFrames( landmarks[i], k );
-  } 
+
+
+  //~ // Select first point at random
+  //~ Random random; random.setSeed(-seed); double rand=random.RandU01();
+  //~ landmarks[0] = std::floor( getNumberOfFrames()*rand );
+  //~ selectFrame( landmarks[0], myframes );
+//~ 
+  //~ // Now find distance to all other points
+  //~ Matrix<double> distances( getNumberOfLandmarks(), getNumberOfFrames() );
+  //~ for(unsigned i=0;i<getNumberOfFrames();++i) distances(0,i) = getDistanceBetweenFrames( landmarks[0], i );
+//~ 
+  //~ // Now find all other landmarks
+  //~ for(unsigned i=1;i<getNumberOfLandmarks();++i){
+      //~ // Find point that has the largest minimum distance from the landmarks selected thus far
+      //~ double maxd=0;
+      //~ for(unsigned j=0;j<getNumberOfFrames();++j){
+          //~ double mind=distances(0,j);
+          //~ for(unsigned k=1;k<i;++k){
+              //~ if( distances(k,j)<mind ){ mind=distances(k,j); }
+          //~ }
+          //~ if( mind>maxd ){ maxd=mind; landmarks[i]=j; }
+      //~ }
+      //~ selectFrame( landmarks[i], myframes );
+      //~ for(unsigned k=0;k<getNumberOfFrames();++k) distances(i,k) = getDistanceBetweenFrames( landmarks[i], k );
+  //~ } 
 }
 
 }

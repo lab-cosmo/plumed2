@@ -135,13 +135,25 @@ void SketchMapField::performTask(){
   grid->getGridPointCoordinates( gridpoint, lpos );
 
   // Calculate the distance from the low dimensional grid point
+//  double dist=0;
+//  for(unsigned i=0;i<nderivatives;++i){
+//      der[i] = lpos[i] - getPropertyValue(i);  
+//      dist += der[i]*der[i];
+//  }
+//  dist = sqrt(dist);
+//  double df, val = 1.0 - lowd.calculate( dist, df );
+
+ // Calculate the dot product distance -- Sandip
+
   double dist=0;
   for(unsigned i=0;i<nderivatives;++i){
-      der[i] = lpos[i] - getPropertyValue(i);  
-      dist += der[i]*der[i];
+      der[i] = lpos[i]* getPropertyValue(i);  
+      dist += der[i];
   }
-  dist = sqrt(dist);
+//  dist = sqrt(dist);
   double df, val = 1.0 - lowd.calculate( dist, df );
+
+
 
   // Put grid stuff somewhere it can be accessed by the field
   for(unsigned i=0;i<nderivatives;++i) addElementDerivative( i, -df*der[i] );
