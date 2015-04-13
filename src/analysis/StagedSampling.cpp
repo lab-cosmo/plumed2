@@ -124,7 +124,6 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
               selected[j+1]=true;
               ncount++;
 		      break;	
-           //!todo: reaally select one random point from the selected voronoi polyhedron
 		  }
 	  }
   } 
