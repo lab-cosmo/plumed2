@@ -36,6 +36,7 @@ private:
   double cgtol;
   std::string ofilename;
   std::string efilename;
+  std::string ssfilename;
   PointWiseMapping* myembedding;
   std::vector<double> fframes;
   Matrix<double> targetDisimilarities;

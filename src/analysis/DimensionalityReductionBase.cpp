@@ -35,6 +35,7 @@ void DimensionalityReductionBase::registerKeywords( Keywords& keys ){
   keys.add("compulsory","EMBEDDING_OFILE","dont output","file on which to output the embedding in plumed input format");
   keys.add("compulsory","OSAMPLE_CGTOL","1E-6","the tolerance on the out of sample conjugate gradient minimisation");
   keys.add("compulsory","OSAMPLE_FILE","dont output","the file on which the projections of all data points are output");
+  keys.add("compulsory","SS_FILE","dont output","the file on which similarity matrix data are to be printed");
 }
 
 DimensionalityReductionBase::DimensionalityReductionBase( const ActionOptions& ao ):
@@ -58,6 +59,7 @@ AnalysisWithLandmarks(ao)
 
   parseOutputFile("EMBEDDING_OFILE",efilename);
   parseOutputFile("OUTPUT_FILE",ofilename);
+  parseOutputFile("SS_FILE",ssfilename);
 }
 
 DimensionalityReductionBase::~DimensionalityReductionBase(){
@@ -70,6 +72,25 @@ void DimensionalityReductionBase::analyzeLandmarks(){
   targetDisimilarities.resize( myembedding->getNumberOfReferenceFrames(), myembedding->getNumberOfReferenceFrames() );
   // This calculates all the distanaces between the high dimensional points
   calculateAllDistances( myembedding, targetDisimilarities );
+// Output the similarity matrix
+  if( ssfilename!="dont output"){
+  OFile gfile; gfile.link(*this); 
+//  gfile.setBackupString("analysis");
+  gfile.fmtField(getOutputFormat()+" ");
+  gfile.open( ssfilename.c_str() );
+  
+  // Print similarity matrix
+  for(unsigned i=0;i<myembedding->getNumberOfReferenceFrames();++i){
+      for(unsigned j=0;j<myembedding->getNumberOfReferenceFrames();++j){
+    //      std::string num; Tools::convert(j+1,num);
+          gfile.printField(" ",targetDisimilarities(i,j) );
+      }
+      gfile.printField();
+  }  
+  gfile.close();
+
+
+}
   // This generates the projections of the points
   generateProjections( myembedding );
 
@@ -88,6 +109,8 @@ void DimensionalityReductionBase::analyzeLandmarks(){
       gfile.printField();
   }  
   gfile.close();
+ 
+
 
   // Output the embedding in plumed format
   if( efilename!="dont output"){
