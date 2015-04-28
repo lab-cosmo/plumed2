@@ -23,12 +23,18 @@
 #include "LandmarkRegister.h"
 #include "tools/Random.h"
 #include <iostream>
+#include <math.h>
+
+#define ESP (1e-9)
+
+//#define gamma 0.5
 namespace PLMD {
 namespace analysis {
 
 class StagedSampling : public LandmarkSelectionBase {
 private:
   unsigned seed;
+  double gamma;
 public:
   StagedSampling( const LandmarkSelectionOptions& lo );
   void select( MultiReferenceBase* );
@@ -40,6 +46,7 @@ StagedSampling::StagedSampling( const LandmarkSelectionOptions& lo ):
 LandmarkSelectionBase(lo)
 {
   parse("SEED",seed);
+  parse("GAMMA",gamma);
 }
 
 void StagedSampling::select( MultiReferenceBase* myframes ){
@@ -53,9 +60,18 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
   fpslandmarks[0] = std::floor( N*rand );
   //using FPS we want to find m landmarks where m = sqrt(nN)
  
-
+  double sum_weight=0.0;
+  bool flag=false;
   std::vector<double> mdlist(N); 
-  for(unsigned i=0;i<N;i++){ mdlist[i] = getDistanceBetweenFrames(fpslandmarks[0],i);}
+  std::vector<double> wt_frames(N); 
+  for(unsigned i=0;i<N;i++){ 
+	  mdlist[i] = getDistanceBetweenFrames(fpslandmarks[0],i);
+	  wt_frames[i] = getWeightOfFrame(i);
+	  sum_weight=sum_weight+wt_frames[i];
+  }
+  
+  if(sum_weight - 0.0 > ESP) flag = true;
+  
   unsigned maxj;
   double maxd;
   for(unsigned i=1;i<m;i++){
@@ -69,13 +85,14 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
   }
  
  
- 
+  for(unsigned int i=0;i<N;i++) wt_frames[i] = pow(wt_frames[i],gamma);
    
  // std::cout << "after FPS"<<std::endl;
   std::vector<std::vector<int> > lneighbours(m);
   std::vector<double> weights(m);  
   for(unsigned i=0;i<m;i++) {
-	  weights[i] = 1;   //!todo: probably frames can have weights, so these should be included
+	  weights[i] = (flag == false) ? 1 : (wt_frames[fpslandmarks[i]]);   //!todo: probably frames can have weights, so these should be included
+//	  weights[i] = pow(weights[i],gamma);
 	  lneighbours[i].push_back(fpslandmarks[i]); // Each element has itself atleast in the neighbourhood.
   }
   int mind_index=0;
@@ -91,7 +108,7 @@ void StagedSampling::select( MultiReferenceBase* myframes ){
 		        }
                  }
 	  }
-	  weights[mind_index]++;
+	  weights[mind_index] += (flag==false) ? 1 : (wt_frames[fpslandmarks[mind_index]]);
 	  lneighbours[mind_index].push_back(i);
   }
   //for(int i=0;i<m;i++) std::cout<<fpslandmarks[i]<< " ";
