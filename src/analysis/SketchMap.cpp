@@ -22,10 +22,14 @@
 #include "DimensionalityReductionBase.h"
 #include "ClassicalScaling.h"
 #include "SMACOF.h"
+#include "tools/ConjugateGradient.h"
+#include "tools/GridSearch.h"
 #include "reference/PointWiseMapping.h"
 #include "core/ActionRegister.h"
 #include "tools/SwitchingFunction.h"
-
+#include <fstream>
+#include <algorithm> 
+#include <math.h>
 //+PLUMEDOC ANALYSIS SKETCHMAP
 /*
 Perform a dimensionality reduction using the sketch-map algorithm
@@ -116,7 +120,12 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
       if( fabs( newsig - filt )<smaptol ) break;
       // Make initial sigma into new sigma so that the value of new sigma is used every time so that the error can be reduced
       filt=newsig;
-  } 
+  }
+  //~ //Where are the points ? 
+  //~ for(unsigned i=0;
+		  
+
+
 }
 
 double SketchMap::recalculateWeights( const Matrix<double>& Distances, const Matrix<double>& F, PointWiseMapping* mymap, Matrix<double>& Weights ){

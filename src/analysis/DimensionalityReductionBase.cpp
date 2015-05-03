@@ -157,6 +157,12 @@ void DimensionalityReductionBase::findClosestPoint( const int& ii, ReferenceConf
   for(unsigned i=0;i<myembedding->getNumberOfProperties();++i) pp[i]=myembedding->getProjectionCoordinate( pnum, i );
 }
 
+void DimensionalityReductionBase::setTargetVectorForPointwiseGlobalMinimisation(unsigned i,Matrix <double> &targets){
+	for(unsigned j=0;j<myembedding->getNumberOfProperties();j++){
+		fframes[j] = targets(i,j);
+	}
+}
+
 double DimensionalityReductionBase::calculateStress( const std::vector<double>& pp, std::vector<double>& der ){
   plumed_dbg_assert( pp.size()==myembedding->getNumberOfProperties() && der.size()==myembedding->getNumberOfProperties() );
 

@@ -44,6 +44,7 @@ protected:
   const Matrix<double>& getTargets() const ;
 public:
   static void registerKeywords( Keywords& keys );
+  void setTargetVectorForPointwiseGlobalMinimisation(unsigned i,Matrix <double> &targets);
   DimensionalityReductionBase( const ActionOptions& );
   ~DimensionalityReductionBase();
   void analyzeLandmarks();
