@@ -27,9 +27,12 @@
 #include "reference/PointWiseMapping.h"
 #include "core/ActionRegister.h"
 #include "tools/SwitchingFunction.h"
-#include <fstream>
+#include <iostream>
 #include <algorithm> 
 #include <math.h>
+#include <iostream>
+#include <fstream>
+#include <sstream>
 //+PLUMEDOC ANALYSIS SKETCHMAP
 /*
 Perform a dimensionality reduction using the sketch-map algorithm
@@ -121,9 +124,58 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
       // Make initial sigma into new sigma so that the value of new sigma is used every time so that the error can be reduced
       filt=newsig;
   }
-  //~ //Where are the points ? 
-  //~ for(unsigned i=0;
-		  
+ 
+  Matrix<double> targets( mymap->modifyDmat() );
+  calculateAllDistances(mymap,targets);
+  
+  std::ofstream myfile("SMACOF.txt");
+  for(unsigned i=0;i<M;i++){
+	 for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
+		myfile<<mymap->getProjectionCoordinate(i,j)<<" ";
+	 }
+	myfile<<"\n";
+  }
+  myfile.close();
+
+   //~ 
+   for(int cnt=0;cnt<3;cnt++){   
+   double cgtol = 1E-4;
+   for(unsigned i=0;i<M;i++){
+	   setTargetVectorForPointwiseGlobalMinimisation(i,targets);
+	   std::vector<double> p(mymap->getNumberOfProperties());
+	   std::vector<double> der(mymap->getNumberOfProperties());
+	   for(unsigned j=0;j<mymap->getNumberOfProperties();j++) p[j] = mymap->getProjectionCoordinate(i,j);
+	   
+	   GridSearch<DimensionalityReductionBase> myminimiser( this );
+	   myminimiser.minimise(p,&DimensionalityReductionBase::calculateStress);
+	   
+	   //Call Conjugate Gradient on it
+	  ConjugateGradient<DimensionalityReductionBase> myminimiser2( this );
+	  myminimiser2.minimise( cgtol, p, &DimensionalityReductionBase::calculateStress );
+	  
+	  // And finally copy the coordinates that you found to the map object.
+      // std::cout<<"Point after conjugate search"<<p[0]<<" "<<p[1]<<"\n";
+       for(unsigned j=0;j<p.size();++j) mymap->setProjectionCoordinate( i, j, p[j] ); 
+   }
+   
+	std::ostringstream fn;
+	fn << "filetarget" << cnt << ".txt";
+
+	// Open and write to the file
+	std::ofstream out(fn.str().c_str(),std::ios_base::binary);
+	
+
+    
+    for(unsigned i=0;i<M;i++){
+		for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
+			out<<mymap->getProjectionCoordinate(i,j)<<" ";
+		}
+		out<<"\n";
+	}
+	out.close();       
+   
+   }
+		  //~ 
 
 
 }
