@@ -167,8 +167,8 @@ void DimensionalityReductionBase::setTargetVectorForPointwiseGlobalMinimisation(
 double DimensionalityReductionBase::calculateStress( const std::vector<double>& pp, std::vector<double>& der ){
   plumed_dbg_assert( pp.size()==myembedding->getNumberOfProperties() && der.size()==myembedding->getNumberOfProperties() );
   std::vector<double> tmpder( myembedding->getNumberOfProperties() );
- // std::cout<<"is it even called\n";
-  double df, chi2=0.0; der.assign(der.size(),0.0);
+  double df, chi2=0.0; 
+  der.assign(der.size(),0.0);
   for(unsigned i=0;i<myembedding->getNumberOfReferenceFrames();++i){
      // Ensure that the identical point is skipped if we are doing point wise global optimisation
      if( fframes[i]<epsilon ) continue ;
@@ -176,7 +176,6 @@ double DimensionalityReductionBase::calculateStress( const std::vector<double>& 
      double dist=0.0;
      for(unsigned j=0;j<myembedding->getNumberOfProperties();++j){
          tmpder[j] = pp[j] - myembedding->getProjectionCoordinate( i, j );
-         //std::cout<<"j ="<<j<<" "<<tmpder[j]<<"\n";
          dist += tmpder[j]*tmpder[j];
      }
      dist=transformLD( sqrt(dist), df );

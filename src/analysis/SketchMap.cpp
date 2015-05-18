@@ -126,12 +126,27 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
   }
  
   Matrix<double> targets( mymap->modifyDmat() );
-  calculateAllDistances(mymap,targets);
+  targets = getTargets();
+  std::vector<double> ld_errors(M);
+  std::ofstream myfile;
+  double totalerror=0.0;
+  //for(unsigned i=0;i<M;i++){
+	   std::vector<double> pi(mymap->getNumberOfProperties());
+	   std::vector<double> deri(mymap->getNumberOfProperties());
+	   for(unsigned k=0;k<mymap->getNumberOfProperties();k++) pi[k] = mymap->getProjectionCoordinate(0,k)+0.1;
+	   double error = calculateStress(pi,deri);
+	   totalerror+=error;
+  //}
+ //~ double totalerror=0.0;
+ //~ for(std::vector<double>::iterator j=ld_errors.begin();j!=ld_errors.end();++j)
+	//~ totalerror += *j;
+
+ std::cout<<"total error after MDS "<< totalerror/(M*(M-1)) <<"\n";	
+ myfile.open("targets.txt");
   
-  std::ofstream myfile("SMACOF.txt");
   for(unsigned i=0;i<M;i++){
 	 for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
-		myfile<<mymap->getProjectionCoordinate(i,j)<<" ";
+		myfile<<targets(i,j)<<" ";
 	 }
 	myfile<<"\n";
   }
@@ -139,6 +154,7 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
 
    //~ 
    for(int cnt=0;cnt<3;cnt++){   
+   
    double cgtol = 1E-4;
    for(unsigned i=0;i<M;i++){
 	   setTargetVectorForPointwiseGlobalMinimisation(i,targets);
@@ -160,19 +176,33 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
    
 	std::ostringstream fn;
 	fn << "filetarget" << cnt << ".txt";
-
 	// Open and write to the file
 	std::ofstream out(fn.str().c_str(),std::ios_base::binary);
-	
-
-    
     for(unsigned i=0;i<M;i++){
 		for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
 			out<<mymap->getProjectionCoordinate(i,j)<<" ";
 		}
 		out<<"\n";
 	}
-	out.close();       
+	out.close();
+	
+  for(unsigned i=0;i<M;i++){
+	 for(unsigned j=0;j<i;j++){
+	   std::vector<double> pi(mymap->getNumberOfProperties());
+	   std::vector<double> deri(mymap->getNumberOfProperties());
+	   for(unsigned j=0;j<mymap->getNumberOfProperties();j++) pi[j] = mymap->getProjectionCoordinate(i,j);
+	   double error = calculateStress(pi,deri);
+	   ld_errors[i]+=error;
+       ld_errors[j]+=error;
+	 }
+  }
+ for(std::vector<double>::iterator k=ld_errors.begin();k!=ld_errors.end();++k)
+	totalerror += *k;
+
+ std::cout<<"total error "<< totalerror/(M*(M-1)) <<"\n";
+ totalerror = 0.0;	       
+   
+   
    
    }
 		  //~ 
