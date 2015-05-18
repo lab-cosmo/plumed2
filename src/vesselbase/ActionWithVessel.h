@@ -103,8 +103,6 @@ protected:
   BridgeVessel* addBridgingVessel( ActionWithVessel* tome );
 /// Complete the setup of this object (this routine must be called after construction of ActionWithValue)
   void readVesselKeywords();
-/// Turn on the derivatives in the vessel
-  void needsDerivatives();
 /// Return the value of the tolerance
   double getTolerance() const ;
 /// Return the value for the neighbor list tolerance
@@ -163,6 +161,8 @@ public:
   void chainRuleForElementDerivatives( const unsigned&, const unsigned& , const unsigned& , const unsigned& , const double& , Vessel* );
   virtual void mergeDerivatives( const unsigned& ider, const double& df );
   virtual void clearDerivativesAfterTask( const unsigned& );
+/// Turn on the derivatives in the vessel
+  virtual void needsDerivatives();
 /// Are derivatives required for this quantity
   bool derivativesAreRequired() const ;
 /// Finish running all the calculations
@@ -213,6 +213,10 @@ public:
   virtual void applyBridgeForces( const std::vector<double>& bb ){ plumed_error(); }
 /// These are overwritten in MultiColvarFunction
   virtual void activateIndexes( const unsigned&, const unsigned&, const std::vector<unsigned>& ){}
+/// Write out the data inside all the vessels to the checkpoint file
+  void dumpCheckPointFile( OFile& cfile );
+/// Read data in from check point files
+  void restartFromCheckPointFile( IFile& cifile );
 /// Return a particular named vessel
   Vessel* getVesselWithName( const std::string& mynam );
 };

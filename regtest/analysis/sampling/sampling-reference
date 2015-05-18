@@ -1,0 +1,29 @@
+Sample input for FPS, RANDOM and STAGED SAMPLING
+
+
+OUTPUT_LANDMARKS ...
+  ARG=d1,d2
+  RUN=999
+  METRIC=EUCLIDEAN
+  LANDMARKS={RANDOM N=300 SEED=1 }
+  LIST_FILE=landmark-random.out
+... OUTPUT_LANDMARKS
+
+OUTPUT_LANDMARKS ...
+  ARG=d1,d2
+  RUN=999
+  METRIC=EUCLIDEAN
+  LANDMARKS={FPS N=300 SEED=1 }
+  LIST_FILE=landmark-FPS.out
+... OUTPUT_LANDMARKS
+
+OUTPUT_LANDMARKS ...
+  ARG=d1,d2,d3.bias
+  RUN=999
+  METRIC=EUCLIDEAN
+  LANDMARKS={STAGED N=300 SEED=1 GAMMA=0.5}
+  LIST_FILE=landmark-staged.out
+... OUTPUT_LANDMARKS
+
+To run the program use
+plumed driver --noatoms --plumed plumed.dat 

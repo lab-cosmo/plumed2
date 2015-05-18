@@ -75,7 +75,7 @@ protected:
 /// Get the position of the ith atom
   Vector getReferencePosition( const unsigned& iatom ) const ;  
 /// Get the reference positions
-  const std::vector<Vector> & getReferencePositions();
+  const std::vector<Vector> & getReferencePositions() const ;
 /// Add derivatives to iatom th atom in list
   void addAtomicDerivatives( const unsigned& , const Vector& );
 /// Get the atomic derivatives on the ith atom in the list
@@ -99,7 +99,7 @@ public:
 /// Set the positions of the reference atoms
   virtual void setReferenceAtoms( const std::vector<Vector>& conf, const std::vector<double>& align_in, const std::vector<double>& displace_in )=0;
 /// Print the atomic positions
-  void printAtoms( OFile& ofile ) const ;
+  void printAtoms( const unsigned& lunits, OFile& ofile ) const ;
 /// Return all atom indexes
   const std::vector<AtomNumber>& getAbsoluteIndexes();
 };
@@ -139,7 +139,7 @@ Vector ReferenceAtoms::getReferencePosition( const unsigned& iatom ) const {
 }
 
 inline
-const std::vector<Vector> & ReferenceAtoms::getReferencePositions(){
+const std::vector<Vector> & ReferenceAtoms::getReferencePositions() const {
   return reference_atoms;
 }
 
