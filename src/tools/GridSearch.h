@@ -49,35 +49,79 @@ void GridSearch<FCLASS>::minimise( std::vector<double> &p, engf_pointer myfunc){
   std::vector<double> temp( p.size() );
   std::vector<double> grid_point( p.size() );
   
-  for(unsigned i=0;i<p.size();i++) {
-	  grid_point[i] = p[i];
-	  temp[i] = p[i];
-  }
-      double min_eng = this->calcDerivatives( grid_point, der, myfunc );
+  double miny,minx,maxy,maxx;
+  maxy = miny = mymap->getProjectionCoordinate(0,1);
+  maxx = minx = mymap->getProjectionCoordinate(0,0);
   
-  for(int i=-5;i<5;i++){
-	  
-	  
-	  for(unsigned k=0;k<p.size();k++) grid_point[k] = temp[k]+0.25*i;
-	  double engy = this->calcDerivatives( grid_point, der, myfunc ); 
-	  if(engy<min_eng){
-		  min_eng = engy;
-		  for(unsigned j=0;j<p.size();j++) p[j] = grid_point[j];
-	  }	  
-	  for(unsigned k=0;k<p.size();k+=2) grid_point[k] = temp[k]+0.25*i;
-	  engy = this->calcDerivatives( grid_point, der, myfunc );
-	  if(engy<min_eng){
-		  min_eng = engy;
-		  for(unsigned j=0;j<p.size();j++) p[j] = grid_point[j];
-	  }	  
-	  for(unsigned k=1;k<p.size();k+=2) grid_point[k] = temp[k]+0.25*i;
-	  engy = this->calcDerivatives( grid_point, der, myfunc );
-	  if(engy<min_eng){
-		  min_eng = engy;
-		  for(unsigned j=0;j<p.size();j++) p[j] = grid_point[j];
-	  }
-	  
+  for(unsigned i=1;i<mymap->getNumberOfReferenceFrames();i++){
+	if(mymap->getProjectionCoordinate(i,0) < minx) minx = mymap->getProjectionCoordinate(i,0);
+	if(mymap->getProjectionCoordinate(i,1) < miny) miny = mymap->getProjectionCoordinate(i,1);
+	if(mymap->getProjectionCoordinate(i,0) > maxx) maxx = mymap->getProjectionCoordinate(i,0);
+	if(mymap->getProjectionCoordinate(i,1) > maxy) maxy = mymap->getProjectionCoordinate(i,1);
   }
+  
+  //minx,maxx and miny,maxy define the boundary of the grid we want and the step size.
+  
+  double stepx = (maxx-minx)/10;
+  double stepy = (maxy-miny)/10;
+  double curr_x = minx;
+  double curr_y = miny;
+  vector<double> ptsinx;  
+  vector<double> ptsiny;
+  vector< vector<double> > engmatrix;
+  
+  for(unsigned i=0;curr_x < maxx;i++){
+	  curr_x = curr_x + stepx*i;
+	  ptsinx.push_back(curr_x);
+	  curr_y = miny;
+	  for(unsigned j=0;curr_y<maxy;j++){
+		  curr_y = curr_y + stepy*j;
+		  if(i==0) ptsiny.push_back(curr_y)
+		  grid_point[0] = curr_x;grid_point[1] = curr_y;
+		  engmatrix[i].push_back( this -> calcDerivatives(grid_point,der,myfunc) );		  
+	  }
+  }
+  
+  
+  
+  
+  
+  
+		  
+		  
+	  
+  
+	  
+  //~ 
+  //~ for(unsigned i=0;i<p.size();i++) {
+	  //~ grid_point[i] = p[i];
+	  //~ temp[i] = p[i];
+  //~ }
+      //~ double min_eng = this->calcDerivatives( grid_point, der, myfunc );
+  //~ 
+  //~ for(int i=-5;i<5;i++){
+	  //~ 
+	  //~ 
+	  //~ for(unsigned k=0;k<p.size();k++) grid_point[k] = temp[k]+0.25*i;
+	  //~ double engy = this->calcDerivatives( grid_point, der, myfunc ); 
+	  //~ if(engy<min_eng){
+		  //~ min_eng = engy;
+		  //~ for(unsigned j=0;j<p.size();j++) p[j] = grid_point[j];
+	  //~ }	  
+	  //~ for(unsigned k=0;k<p.size();k+=2) grid_point[k] = temp[k]+0.25*i;
+	  //~ engy = this->calcDerivatives( grid_point, der, myfunc );
+	  //~ if(engy<min_eng){
+		  //~ min_eng = engy;
+		  //~ for(unsigned j=0;j<p.size();j++) p[j] = grid_point[j];
+	  //~ }	  
+	  //~ for(unsigned k=1;k<p.size();k+=2) grid_point[k] = temp[k]+0.25*i;
+	  //~ engy = this->calcDerivatives( grid_point, der, myfunc );
+	  //~ if(engy<min_eng){
+		  //~ min_eng = engy;
+		  //~ for(unsigned j=0;j<p.size();j++) p[j] = grid_point[j];
+	  //~ }
+	  //~ 
+  //~ }
 	//double cgtol = 0.0001;
 	//ConjugateGradient<FCLASS>::minimise(cgtol,p,myfunc )
   	//ConjugateGradient<DimensionalityReductionBase> myminimiser2( this );

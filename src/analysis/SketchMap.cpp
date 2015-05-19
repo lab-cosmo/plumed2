@@ -127,33 +127,45 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
  
   Matrix<double> targets( mymap->modifyDmat() );
   targets = getTargets();
-  std::vector<double> ld_errors(M);
+  
+  std::vector<double> ld_error(M);
   std::ofstream myfile;
   double totalerror=0.0;
-  //for(unsigned i=0;i<M;i++){
+  
+  //Calculates error just after MDS
+  for(unsigned i=0;i<M;i++){
 	   std::vector<double> pi(mymap->getNumberOfProperties());
 	   std::vector<double> deri(mymap->getNumberOfProperties());
-	   for(unsigned k=0;k<mymap->getNumberOfProperties();k++) pi[k] = mymap->getProjectionCoordinate(0,k)+0.1;
+	   //Modify fframes for calculateStress routine	   
+	   setTargetVectorForPointwiseGlobalMinimisation(i,targets);
+	   for(unsigned k=0;k<mymap->getNumberOfProperties();k++) pi[k] = mymap->getProjectionCoordinate(i,k);
 	   double error = calculateStress(pi,deri);
+	   ld_error[i] = error;
 	   totalerror+=error;
-  //}
- //~ double totalerror=0.0;
- //~ for(std::vector<double>::iterator j=ld_errors.begin();j!=ld_errors.end();++j)
-	//~ totalerror += *j;
-
- std::cout<<"total error after MDS "<< totalerror/(M*(M-1)) <<"\n";	
- myfile.open("targets.txt");
-  
-  for(unsigned i=0;i<M;i++){
-	 for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
-		myfile<<targets(i,j)<<" ";
-	 }
+  }
+ myfile.open("Smacof.txt");
+    for(unsigned i=0;i<M;i++){
+		for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
+			myfile<<mymap->getProjectionCoordinate(i,j)<<" ";
+		}
 	myfile<<"\n";
   }
   myfile.close();
 
-   //~ 
-   for(int cnt=0;cnt<3;cnt++){   
+ std::cout<<"total error after MDS "<< totalerror/(M*(M-1)) <<"\n";	
+ myfile.open("targets.txt");
+  myfile<<"# x y Error \n";
+  for(unsigned i=0;i<M;i++){
+	 for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
+		myfile<<targets(i,j)<<" ";
+	 }
+	myfile<<ld_error[i];
+	myfile<<"\n";
+  }
+  myfile.close();
+
+   
+   for(int cnt=0;cnt<20;cnt++){   
    
    double cgtol = 1E-4;
    for(unsigned i=0;i<M;i++){
@@ -174,6 +186,17 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
        for(unsigned j=0;j<p.size();++j) mymap->setProjectionCoordinate( i, j, p[j] ); 
    }
    
+  totalerror = 0.0;
+  for(unsigned q=0;q<M;q++){
+	   std::vector<double> pi(mymap->getNumberOfProperties());
+	   std::vector<double> deri(mymap->getNumberOfProperties());	   
+	   setTargetVectorForPointwiseGlobalMinimisation(q,targets);
+	   for(unsigned k=0;k<mymap->getNumberOfProperties();k++) pi[k] = mymap->getProjectionCoordinate(q,k);
+	   double error = calculateStress(pi,deri);
+	   ld_error[q] = error;
+	   totalerror+=error;
+  }
+     
 	std::ostringstream fn;
 	fn << "filetarget" << cnt << ".txt";
 	// Open and write to the file
@@ -182,22 +205,11 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
 		for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
 			out<<mymap->getProjectionCoordinate(i,j)<<" ";
 		}
+		out<<ld_error[i];
 		out<<"\n";
 	}
 	out.close();
-	
-  for(unsigned i=0;i<M;i++){
-	 for(unsigned j=0;j<i;j++){
-	   std::vector<double> pi(mymap->getNumberOfProperties());
-	   std::vector<double> deri(mymap->getNumberOfProperties());
-	   for(unsigned j=0;j<mymap->getNumberOfProperties();j++) pi[j] = mymap->getProjectionCoordinate(i,j);
-	   double error = calculateStress(pi,deri);
-	   ld_errors[i]+=error;
-       ld_errors[j]+=error;
-	 }
-  }
- for(std::vector<double>::iterator k=ld_errors.begin();k!=ld_errors.end();++k)
-	totalerror += *k;
+
 
  std::cout<<"total error "<< totalerror/(M*(M-1)) <<"\n";
  totalerror = 0.0;	       

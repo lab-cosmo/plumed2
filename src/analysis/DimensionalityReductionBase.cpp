@@ -178,6 +178,7 @@ double DimensionalityReductionBase::calculateStress( const std::vector<double>& 
          tmpder[j] = pp[j] - myembedding->getProjectionCoordinate( i, j );
          dist += tmpder[j]*tmpder[j];
      }
+
      dist=transformLD( sqrt(dist), df );
      double tmp = fframes[i] - dist;
      // Accumulate the stress 
