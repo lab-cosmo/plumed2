@@ -23,6 +23,7 @@
 #define __PLUMED_tools_ConjugateGradient_h
 
 #include "MinimiseBase.h"
+#include <iostream>
 
 namespace PLMD{
 
@@ -41,8 +42,9 @@ public:
 
 template <class FCLASS>
 void ConjugateGradient<FCLASS>::minimise( const double& ftol, std::vector<double>& p, engf_pointer myfunc ){
-  std::vector<double> xi( p.size() ), g( p.size() ), h( p.size() );
+  std::vector<double> xi( p.size() ), g(p.size()), h(p.size());
   double fp = this->calcDerivatives( p, xi, myfunc );
+ // std::cout<<"stress inside CG= "<<fp<<"\n";
   for(unsigned j=0;j<p.size();++j){ g[j] = -xi[j]; xi[j]=h[j]=g[j]; }
 
   for(unsigned its=0;its<ITMAX;++its){
@@ -57,8 +59,11 @@ void ConjugateGradient<FCLASS>::minimise( const double& ftol, std::vector<double
 
      double gam=ddg/gg;
      for(unsigned j=0;j<p.size();++j){ g[j] = -xi[j]; xi[j]=h[j]=g[j]+gam*h[j]; }
+  
   }
-  plumed_merror("Too many interactions in conjugate gradient"); 
+  //plumed_merror("Too many interactions in conjugate gradient"); 
+  std::cout<<"Too many  Its is "<<ITMAX<<"\n";
+  return;
 }
 
 }

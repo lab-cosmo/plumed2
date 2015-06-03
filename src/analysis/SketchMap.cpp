@@ -129,10 +129,11 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
   targets = getTargets();
   
   std::vector<double> ld_error(M);
+  std::vector<double> cg_error(M);
   std::ofstream myfile;
   double totalerror=0.0;
   
-  //Calculates error just after MDS
+  //Calculates error just after Smacof
   for(unsigned i=0;i<M;i++){
 	   std::vector<double> pi(mymap->getNumberOfProperties());
 	   std::vector<double> deri(mymap->getNumberOfProperties());
@@ -143,6 +144,9 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
 	   ld_error[i] = error;
 	   totalerror+=error;
   }
+
+
+/* Routine to write Projected coordinates after Smacof */
  myfile.open("Smacof.txt");
     for(unsigned i=0;i<M;i++){
 		for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
@@ -151,70 +155,164 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
 	myfile<<"\n";
   }
   myfile.close();
+  std::cout<<"total error after Smacof "<< totalerror/(M*(M-1)) <<"\n";	
+/////////////////////////////////////////////////////////////////////////////   
+ 
+ 
+   double cgtol = 1E-4;
+      for(unsigned i=0;i<M;i++){
+	   std::vector<double> p(mymap->getNumberOfProperties());
+	   std::vector<double> der(mymap->getNumberOfProperties());
+	   for(unsigned j=0;j<mymap->getNumberOfProperties();j++) p[j] = mymap->getProjectionCoordinate(i,j);
+       ConjugateGradient<DimensionalityReductionBase> myminimiser2( this );
+       myminimiser2.minimise( cgtol, p, &DimensionalityReductionBase::calculateStress );
+	  }
+  totalerror = 0.0;
+ //Calculates error just after SMACOF + CG
+  for(unsigned i=0;i<M;i++){
+	   std::vector<double> pi(mymap->getNumberOfProperties());
+	   std::vector<double> deri(mymap->getNumberOfProperties());
+	   //Modify fframes for calculateStress routine	   
+	   setTargetVectorForPointwiseGlobalMinimisation(i,targets);
+	   for(unsigned k=0;k<mymap->getNumberOfProperties();k++) pi[k] = mymap->getProjectionCoordinate(i,k);
+	   double error = calculateStress(pi,deri);
+	   ld_error[i] = error;
+	   totalerror+=error;
+  }
+  std::cout<<"total error after Smacof+CG "<< totalerror/(M*(M-1)) <<"\n";
 
- std::cout<<"total error after MDS "<< totalerror/(M*(M-1)) <<"\n";	
- myfile.open("targets.txt");
+ myfile.open("projections after cg.txt");
   myfile<<"# x y Error \n";
   for(unsigned i=0;i<M;i++){
 	 for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
-		myfile<<targets(i,j)<<" ";
+		myfile<<mymap->getProjectionCoordinate(i,j)<<" ";
 	 }
 	myfile<<ld_error[i];
 	myfile<<"\n";
   }
   myfile.close();
 
+//Routine for grid search.
    
-   for(int cnt=0;cnt<20;cnt++){   
-   
-   double cgtol = 1E-4;
-   for(unsigned i=0;i<M;i++){
-	   setTargetVectorForPointwiseGlobalMinimisation(i,targets);
-	   std::vector<double> p(mymap->getNumberOfProperties());
-	   std::vector<double> der(mymap->getNumberOfProperties());
-	   for(unsigned j=0;j<mymap->getNumberOfProperties();j++) p[j] = mymap->getProjectionCoordinate(i,j);
-	   
-	   GridSearch<DimensionalityReductionBase> myminimiser( this );
-	   myminimiser.minimise(p,&DimensionalityReductionBase::calculateStress);
-	   
-	   //Call Conjugate Gradient on it
-	  ConjugateGradient<DimensionalityReductionBase> myminimiser2( this );
-	  myminimiser2.minimise( cgtol, p, &DimensionalityReductionBase::calculateStress );
+   for(int cnt=0;cnt<1;cnt++){
+		double minx,miny,maxx,maxy;
+		maxy = miny = mymap->getProjectionCoordinate(0,1);
+		maxx = minx = mymap->getProjectionCoordinate(0,0);
 	  
-	  // And finally copy the coordinates that you found to the map object.
-      // std::cout<<"Point after conjugate search"<<p[0]<<" "<<p[1]<<"\n";
-       for(unsigned j=0;j<p.size();++j) mymap->setProjectionCoordinate( i, j, p[j] ); 
-   }
-   
-  totalerror = 0.0;
-  for(unsigned q=0;q<M;q++){
-	   std::vector<double> pi(mymap->getNumberOfProperties());
-	   std::vector<double> deri(mymap->getNumberOfProperties());	   
-	   setTargetVectorForPointwiseGlobalMinimisation(q,targets);
-	   for(unsigned k=0;k<mymap->getNumberOfProperties();k++) pi[k] = mymap->getProjectionCoordinate(q,k);
-	   double error = calculateStress(pi,deri);
-	   ld_error[q] = error;
-	   totalerror+=error;
-  }
-     
-	std::ostringstream fn;
-	fn << "filetarget" << cnt << ".txt";
-	// Open and write to the file
-	std::ofstream out(fn.str().c_str(),std::ios_base::binary);
-    for(unsigned i=0;i<M;i++){
-		for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
-			out<<mymap->getProjectionCoordinate(i,j)<<" ";
+		for(unsigned i=1;i<mymap->getNumberOfReferenceFrames();i++){
+			if(mymap->getProjectionCoordinate(i,0) < minx) minx = mymap->getProjectionCoordinate(i,0);
+			if(mymap->getProjectionCoordinate(i,1) < miny) miny = mymap->getProjectionCoordinate(i,1);
+			if(mymap->getProjectionCoordinate(i,0) > maxx) maxx = mymap->getProjectionCoordinate(i,0);
+			if(mymap->getProjectionCoordinate(i,1) > maxy) maxy = mymap->getProjectionCoordinate(i,1);
+		} 
+		
+       //std::cout<<"minx,maxx, miny,maxy= "<<minx<<" , "<<maxx<<" , " <<miny <<" , "<<maxy<<"\n" ;
+	   //Run Grid Search for each frame and get the correct projection.
+	   for(unsigned i=0;i<M;i++){
+		   setTargetVectorForPointwiseGlobalMinimisation(i,targets);
+		   std::vector<double> p(mymap->getNumberOfProperties());
+		   std::vector<double> der(mymap->getNumberOfProperties());
+		   for(unsigned j=0;j<mymap->getNumberOfProperties();j++) p[j] = mymap->getProjectionCoordinate(i,j);
+		   double stepx = fabs(maxx-minx)/100.0;
+		   double stepy = fabs(maxy-miny)/100.0;
+		   //std::cout<<"stepx,stepy= "<<stepx<<" , "<<stepy<<"\n" ; 
+		   std::vector<double> temp( p.size() );
+		   std::vector<double> grid_point( p.size() );
+		   double min_eng,eng_pt;
+		   std::vector< std::vector<double> > stressgrid(101,std::vector<double>(101));
+		   double curr_x = minx;
+		   double curr_y = miny;
+		   grid_point[0] = curr_x;grid_point[1] = curr_y;
+		   min_eng = calculateStress(p,der) ;
+		   for(int l=-10;l<111;l++){
+				curr_x = minx + stepx*l;
+				for(int j=-10;j<111;j++){
+					curr_y = miny + stepy*j;
+//					if(l==0) ptsiny.push_back(curr_y);
+					  grid_point[0] = curr_x;grid_point[1] = curr_y;
+					  eng_pt = calculateStress(grid_point,der);
+//					  stressgrid[l][j] = eng_pt;
+                      //std::cout<<"new eng old eng "<<eng_pt<<" "<< min_eng<<"\n";
+					  if(eng_pt < min_eng){
+						//std::cout<<"found new energy\n";
+//						std::cout<<"new eng old eng "<<eng_pt<<" "<< min_eng<<"\r";
+						min_eng = eng_pt;			
+						p[0] = curr_x;p[1] = curr_y;
+						
+					  }		  		  
+				}
+			}
+		   
+		   //GridSearch<DimensionalityReductionBase> myminimiser( this );
+		   //myminimiser.minimise(p,&DimensionalityReductionBase::calculateStress,minx,miny,maxx,maxy);
+		    ld_error[i] = calculateStress(p,der);
+		   	std::cout<<p[0]<<" "<<p[1]<<" ";
+		   
+		    temp[0] = p[0];
+		    temp[1] = p[1];
+		   	ConjugateGradient<DimensionalityReductionBase> myminimiser2( this );
+			myminimiser2.minimise( cgtol, temp, &DimensionalityReductionBase::calculateStress );
+		   
+		   
+		    std::cout<<p[0]<<" "<<p[1]<<"\n";
+		   for(unsigned j=0;j<p.size();++j) mymap->setProjectionCoordinate(i,j,p[j]);
+		   double error = calculateStress(p,der);
+		   cg_error[i] = error; 
+	   }
+	    myfile.open("projections after gridsearch.txt");
+		myfile<<"# x y Error before cg after cg""\n";
+		for(unsigned i=0;i<M;i++){
+			for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
+			myfile<<mymap->getProjectionCoordinate(i,j)<<" ";
+			}
+			myfile<<ld_error[i]<<"  "<<cg_error[i];
+			myfile<<"\n";
 		}
-		out<<ld_error[i];
-		out<<"\n";
-	}
-	out.close();
-
-
- std::cout<<"total error "<< totalerror/(M*(M-1)) <<"\n";
- totalerror = 0.0;	       
-   
-   
+		myfile.close();
+		  
+		  // std::cout<<"Projection after GS is "<<p[0]<<" "<<p[1]<<"\n";
+		   //Call Conjugate Gradient on it
+		   //~ for(int j=0;j<M;j++){
+			    //~ if(j!=i){
+					//~ setTargetVectorForPointwiseGlobalMinimisation(i,targets);
+					//~ for(unsigned k=0;k<mymap->getNumberOfProperties();k++) p[k] = mymap->getProjectionCoordinate(j,k);
+					//~ ConjugateGradient<DimensionalityReductionBase> myminimiser2( this );
+					//~ myminimiser2.minimise( cgtol, p, &DimensionalityReductionBase::calculateStress );
+					//~ for(unsigned t=0;t<p.size();++t) mymap->setProjectionCoordinate( j, t, p[t] ); 
+				//~ }
+		   //~ }
+		  // std::cout<<"Projection after CG is "<<p[0]<<" "<<p[1]<<"\n";
+		  // And finally copy the coordinates that you found to the map object.
+		  // std::cout<<"Point after conjugate search"<<p[0]<<" "<<p[1]<<"\n";
+		  
+		  
+	   
+	  totalerror = 0.0;
+	  for(unsigned q=0;q<M;q++){
+		   std::vector<double> p(mymap->getNumberOfProperties());
+		   std::vector<double> deri(mymap->getNumberOfProperties());	   
+		   setTargetVectorForPointwiseGlobalMinimisation(q,targets);
+		   for(unsigned k=0;k<mymap->getNumberOfProperties();k++) p[k] = mymap->getProjectionCoordinate(q,k);
+		   double error = calculateStress(p,deri);
+		   ld_error[q] = error;
+		   totalerror+=error;
+	  }
+	 
+	 std::cout<<"total error "<< totalerror/(M*(M-1)) <<"\n";
+	 totalerror = 0.0;	
+		 
+		std::ostringstream fn;
+		fn << "filetarget" << cnt << ".txt";
+		// Open and write to the file
+		std::ofstream out(fn.str().c_str(),std::ios_base::binary);
+		for(unsigned i=0;i<M;i++){
+			for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
+				out<<mymap->getProjectionCoordinate(i,j)<<" ";
+			}
+			out<<ld_error[i];
+			out<<"\n";
+		}
+		out.close();
    
    }
 		  //~ 
