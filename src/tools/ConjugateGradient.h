@@ -61,9 +61,9 @@ void ConjugateGradient<FCLASS>::minimise( const double& ftol, std::vector<double
      for(unsigned j=0;j<p.size();++j){ g[j] = -xi[j]; xi[j]=h[j]=g[j]+gam*h[j]; }
   
   }
-  //plumed_merror("Too many interactions in conjugate gradient"); 
+  plumed_merror("Too many interactions in conjugate gradient"); 
   std::cout<<"Too many  Its is "<<ITMAX<<"\n";
-  return;
+ // return;
 }
 
 }
