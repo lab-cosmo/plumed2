@@ -50,6 +50,7 @@ private:
   bool nosmacof,doglobal;
   double smactol, smaptol, regulariser,ncgrid,nfgrid;
   SwitchingFunction lowdf, highdf;
+  unsigned niter;
   double recalculateWeights( const Matrix<double>& Distances, const Matrix<double>& F, PointWiseMapping* mymap, Matrix<double>& Weights );
 public:
   static void registerKeywords( Keywords& keys );
@@ -71,8 +72,9 @@ void SketchMap::registerKeywords( Keywords& keys ){
   keys.add("compulsory","SMAP_TOL","1E-4","the tolerance for sketch-map");
   keys.add("compulsory","REGULARISE_PARAM","0.001","this is used to ensure that we don't divide by zero when updating weights");
  // keys.add("compulsory","DOGLOBAL","false","logical. to do it or not");
-  keys.add("compulsory","CGrid","10","NCGRID");
-  keys.add("compulsory","FGrid","100","NFGRID");
+  keys.add("compulsory","CGrid","10","Coarse Grid dimensions ");
+  keys.add("compulsory","FGrid","100","Fine Grid dimensions");
+  keys.add("compulsory","NITER","1","Number of times to repeat Grid Search");
 }
 
 SketchMap::SketchMap( const ActionOptions& ao ):
@@ -94,6 +96,7 @@ DimensionalityReductionBase(ao)
   parse("REGULARISE_PARAM",regulariser);
   parse("CGrid",ncgrid);
   parse("FGrid",nfgrid);
+  parse("NITER",niter);
 }
 
 void SketchMap::calculateAllDistances( PointWiseMapping* mymap, Matrix<double>& targets ){
@@ -154,23 +157,48 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
 
 	std::ofstream myfile;
 	/* Routine to write Projected coordinates after Smacof */
-	myfile.open("Smacof.txt");
+	myfile.open("Smacof.dat");
 	for(unsigned i=0;i<M;i++){
 		for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
 			myfile<<mymap->getProjectionCoordinate(i,j)<<" ";
 		}
-		myfile<<smacof_error[i];
+		myfile<<smacof_error[i]/(M*(M-1));
 	myfile<<"\n";
 	}
 	myfile.close();
-	std::cout<<"total error after Smacof "<< smacof_totalerror <<"\n";	
+	std::cout<<"Total error after Smacof "<< smacof_totalerror/(M*(M-1)) <<"\n";	
 /////////////////////////////////////////////////////////////////////////////   
 
-	double cgtol = 1E-4;
-
+	double cgtol = 1E-6;
+	double totalerror=0;
+	   for(unsigned i=0;i<M;i++){
+		   std::vector<double> p(mymap->getNumberOfProperties());
+		   std::vector<double> der(mymap->getNumberOfProperties());
+	           setTargetVectorForPointwiseGlobalMinimisation(i,targets);
+		   //Copy frame coordinates to p.
+		   for(unsigned j=0;j<mymap->getNumberOfProperties();j++) p[j] = mymap->getProjectionCoordinate(i,j); 
+		   ConjugateGradient<DimensionalityReductionBase> myminimiser2( this );
+		   myminimiser2.minimise( cgtol, p, &DimensionalityReductionBase::calculateStress );
+		   for(unsigned j=0;j<p.size();++j) mymap->setProjectionCoordinate(i,j,p[j]); //Set the projected point in the mymap object.
+	           double error = calculateStress(p,der);
+                   totalerror+=error;
+            }
+	std::cout<<"Total error after Smacof+CG "<<totalerror/(M*(M-1)) <<"\n";	
+	/* Routine to write Projected coordinates after Smacof */
+	myfile.open("Smacof+CG.dat");
+	for(unsigned i=0;i<M;i++){
+		for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
+			myfile<<mymap->getProjectionCoordinate(i,j)<<" ";
+		}
+	myfile<<"\n";
+	}
+	myfile.close();
 //Routine for grid search.
    
-	for(int cnt=0;cnt<1;cnt++){
+	std::cout<<"Starting Pointwise Global Optimization-->";	
+        std::cout<<" Coarse Grid "<< ncgrid<<" X " << ncgrid ;
+        std::cout<<" --> Fine Grid "<< nfgrid<<" X " << nfgrid <<"\n";
+	for(int cnt=0;cnt<niter;cnt++){
 		double minx,miny,maxx,maxy;
 		maxy = miny = mymap->getProjectionCoordinate(0,1);
 		maxx = minx = mymap->getProjectionCoordinate(0,0);
@@ -182,22 +210,21 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
 			if(mymap->getProjectionCoordinate(i,1) > maxy) maxy = mymap->getProjectionCoordinate(i,1);
 		} 
 // padding for the grid 
-		minx=minx-0.2*minx;
-		miny=miny-0.2*miny;
-		maxx=maxx+0.2*minx;
-		maxy=maxy+0.2*miny;
+		minx=minx-0.1*minx;
+		miny=miny-0.1*miny;
+		maxx=maxx+0.1*minx;
+		maxy=maxy+0.1*miny;
 		double stepx = fabs(maxx-minx)/(double)ncgrid;
-		double stepy = fabs(maxy-miny)/(double)ncgrid; 
+		double stepy = fabs(maxy-miny)/(double)ncgrid;
        //Run Grid Search for each frame and get the correct projection.
 	   for(unsigned i=0;i<M;i++){
 		   std::vector<double> p(mymap->getNumberOfProperties());
 		   std::vector<double> der(mymap->getNumberOfProperties());
+	           setTargetVectorForPointwiseGlobalMinimisation(i,targets);
 		   //Copy frame coordinates to p.
 		   for(unsigned j=0;j<mymap->getNumberOfProperties();j++) p[j] = mymap->getProjectionCoordinate(i,j); 
-		   
 		   std::vector<double> temp(p.size());
 		   std::vector<double> grid_point(p.size());
-		   
 		   double min_eng,eng_pt,curr_x,curr_y;
 		   //To hold stress at each grid point.
 		   std::vector< std::vector<double> > stressgrid(ncgrid,std::vector<double>(ncgrid));
@@ -208,7 +235,9 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
 		   grid_point[1] = curr_y = miny;		   
 		   //Calculate stress at the frame point.
 		   min_eng = calculateStress(p,der) ;		
-		   
+       //            std::cout<<"min_eng= "<<min_eng<<" "<<i<<"\n"; 
+       //            std::cout<<"min_eng= "<<min_eng<<" "<<i<<"\n"; 
+	//           std::cout<<"\n Optimizing frame: " << i <<" Coarse Grid " ;	   
 		   for(int l=0;l<ncgrid;l++){
 				curr_x = minx + stepx*l;
 				ptsinx.push_back(curr_x);
@@ -220,24 +249,24 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
 					eng_pt = calculateStress(grid_point,der);
 					stressgrid[l][j] = eng_pt; //Store stress in the stress grid.
 					if(eng_pt < min_eng){
+	  //                                      std::cout<<"FOUND " ;	   
 						min_eng = eng_pt;			
 						p[0] = curr_x;p[1] = curr_y;	//Update the point if stress is less here.	
 					}		  		  
 				}
 		   }
-
-           setTargetVectorForPointwiseGlobalMinimisation(i,targets); //For the routine calculateStress.
 		   GridSearch<DimensionalityReductionBase> myminimiser( this );
+            //       double temp_en=min_eng;    
 		   myminimiser.minimise(p,&DimensionalityReductionBase::calculateStress,stressgrid,nfgrid,min_eng,ptsinx,ptsiny);
+              //     if(min_eng < temp_en) std::cout<<"Fine Grid: Found" ;	
 		   grid_error[i] = calculateStress(p,der);
 		   ConjugateGradient<DimensionalityReductionBase> myminimiser2( this );
 		   myminimiser2.minimise( cgtol, p, &DimensionalityReductionBase::calculateStress );
-		   		   
 		   for(unsigned j=0;j<p.size();++j) mymap->setProjectionCoordinate(i,j,p[j]); //Set the projected point in the mymap object.
 
 	   }
 	   
-	    myfile.open("gridsearch.txt");
+/*	    myfile.open("gridsearch.dat");
 		for(unsigned i=0;i<M;i++){
 			for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
 			myfile<<mymap->getProjectionCoordinate(i,j)<<" ";
@@ -245,7 +274,7 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
 			myfile<<grid_error[i]<<"\n";
 		}
 		myfile.close();		  
-	   
+*/	   
 		double grid_totalerror = 0;
 		for(unsigned q=0;q<M;q++){
 			std::vector<double> p(mymap->getNumberOfProperties());
@@ -257,15 +286,15 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
 			grid_totalerror+=grid_error[q];
 		}
 	 
-	 std::cout<<"Total error after Grid Search"<< grid_totalerror <<"\n";
+	 std::cout<<"Total error after Pointwise Global Optimization after iteration number "<<cnt+1<<" : " <<grid_totalerror/(M*(M-1)) <<"\n";
 	 std::ostringstream fn;
-	 fn << "filetarget" << cnt << ".txt";
+	 fn << "global_" << cnt << ".dat";
 	 std::ofstream out(fn.str().c_str(),std::ios_base::binary);
 	 for(unsigned i=0;i<M;i++){
 		for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
 			out<<mymap->getProjectionCoordinate(i,j)<<" ";
 		}
-		out<<grid_error[i];
+		out<<grid_error[i]/(M*(M-1));
 		out<<"\n";
 	 }
 	 out.close();

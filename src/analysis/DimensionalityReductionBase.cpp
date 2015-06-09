@@ -159,7 +159,7 @@ void DimensionalityReductionBase::findClosestPoint( const int& ii, ReferenceConf
 }
 
 void DimensionalityReductionBase::setTargetVectorForPointwiseGlobalMinimisation(unsigned i,Matrix <double> &targets){
-	for(unsigned j=0;j<myembedding->getNumberOfProperties();j++){
+	for(unsigned j=0;j<myembedding->getNumberOfReferenceFrames();j++){
 		fframes[j] = targets(i,j);
 	}
 }
