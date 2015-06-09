@@ -47,8 +47,8 @@ namespace analysis {
 
 class SketchMap : public DimensionalityReductionBase {
 private:
-  bool nosmacof;
-  double smactol, smaptol, regulariser;
+  bool nosmacof,doglobal;
+  double smactol, smaptol, regulariser,ncgrid,nfgrid;
   SwitchingFunction lowdf, highdf;
   double recalculateWeights( const Matrix<double>& Distances, const Matrix<double>& F, PointWiseMapping* mymap, Matrix<double>& Weights );
 public:
@@ -70,6 +70,9 @@ void SketchMap::registerKeywords( Keywords& keys ){
   keys.add("compulsory","SMACOF_TOL","1E-4","the tolerance for each SMACOF cycle");
   keys.add("compulsory","SMAP_TOL","1E-4","the tolerance for sketch-map");
   keys.add("compulsory","REGULARISE_PARAM","0.001","this is used to ensure that we don't divide by zero when updating weights");
+ // keys.add("compulsory","DOGLOBAL","false","logical. to do it or not");
+  keys.add("compulsory","CGrid","10","NCGRID");
+  keys.add("compulsory","FGrid","100","NFGRID");
 }
 
 SketchMap::SketchMap( const ActionOptions& ao ):
@@ -84,11 +87,13 @@ DimensionalityReductionBase(ao)
   parse("LOW_DIM_FUNCTION",linput);
   lowdf.set(hinput,errors);
   if(errors.length()>0) error(errors);
-
+//  parse("DOGLOBAL",doglobal);
   // Read tolerances
   parse("SMACOF_TOL",smactol);
   parse("SMAP_TOL",smaptol);
   parse("REGULARISE_PARAM",regulariser);
+  parse("CGrid",ncgrid);
+  parse("FGrid",nfgrid);
 }
 
 void SketchMap::calculateAllDistances( PointWiseMapping* mymap, Matrix<double>& targets ){
@@ -104,106 +109,167 @@ void SketchMap::calculateAllDistances( PointWiseMapping* mymap, Matrix<double>& 
 
 
 void SketchMap::generateProjections( PointWiseMapping* mymap ){
-  Matrix<double> Distances( mymap->modifyDmat() ); //making a copy
-  // Calculates the first guess of projections in LD space 
-  ClassicalScaling::run( mymap );
-  
-  // Calculate the value of sigma and the weights
-  unsigned M = mymap->getNumberOfReferenceFrames();
-  Matrix<double> Weights(M,M); double filt = recalculateWeights( Distances, getTargets(), mymap, Weights );
+	Matrix<double> Distances( mymap->modifyDmat() ); //making a copy
+	// Calculates the first guess of projections in LD space 
+	ClassicalScaling::run( mymap );
 
-  unsigned MAXSTEPS=100; double newsig;
-  for(unsigned i=0;i<MAXSTEPS;++i){
-      // Run the smacof algorithm
-      SMACOF::run( Weights, mymap, smactol );
-      // Recalculate weights matrix and sigma
-      newsig = recalculateWeights( Distances, getTargets(), mymap, Weights );
-      printf("HELLO GARETH AND RACHEL %d %f %f %f \n",i, newsig, filt, fabs( newsig - filt ) );
-      // Test whether or not the algorithm has converged
-      if( fabs( newsig - filt )<smaptol ) break;
-      // Make initial sigma into new sigma so that the value of new sigma is used every time so that the error can be reduced
-      filt=newsig;
-  }
- 
-  Matrix<double> targets( mymap->modifyDmat() );
-  targets = getTargets();
-  std::vector<double> ld_errors(M);
-  std::ofstream myfile;
-  double totalerror=0.0;
-  //for(unsigned i=0;i<M;i++){
-	   std::vector<double> pi(mymap->getNumberOfProperties());
-	   std::vector<double> deri(mymap->getNumberOfProperties());
-	   for(unsigned k=0;k<mymap->getNumberOfProperties();k++) pi[k] = mymap->getProjectionCoordinate(0,k)+0.1;
-	   double error = calculateStress(pi,deri);
-	   totalerror+=error;
-  //}
- //~ double totalerror=0.0;
- //~ for(std::vector<double>::iterator j=ld_errors.begin();j!=ld_errors.end();++j)
-	//~ totalerror += *j;
+	// Calculate the value of sigma and the weights
+	unsigned M = mymap->getNumberOfReferenceFrames();
+	Matrix<double> Weights(M,M); double filt = recalculateWeights( Distances, getTargets(), mymap, Weights );
 
- std::cout<<"total error after MDS "<< totalerror/(M*(M-1)) <<"\n";	
- myfile.open("targets.txt");
-  
-  for(unsigned i=0;i<M;i++){
-	 for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
-		myfile<<targets(i,j)<<" ";
-	 }
-	myfile<<"\n";
-  }
-  myfile.close();
+	unsigned MAXSTEPS=100; double newsig;
+	for(unsigned i=0;i<MAXSTEPS;++i){
+	  // Run the smacof algorithm
+	  SMACOF::run( Weights, mymap, smactol );
+	  // Recalculate weights matrix and sigma
+	  newsig = recalculateWeights( Distances, getTargets(), mymap, Weights );
+	  printf("HELLO GARETH AND RACHEL %d %f %f %f \n",i, newsig, filt, fabs( newsig - filt ) );
+	  // Test whether or not the algorithm has converged
+	  if( fabs( newsig - filt )<smaptol ) break;
+	  // Make initial sigma into new sigma so that the value of new sigma is used every time so that the error can be reduced
+	  filt=newsig;
+	}
 
-   //~ 
-   for(int cnt=0;cnt<3;cnt++){   
-   
-   double cgtol = 1E-4;
-   for(unsigned i=0;i<M;i++){
-	   setTargetVectorForPointwiseGlobalMinimisation(i,targets);
+	//targets matrix contains the distances of each frame with other frames
+	Matrix<double> targets(mymap->modifyDmat());
+	targets = getTargets();
+
+	std::vector<double> smacof_error(M);
+	std::vector<double> cg_error(M);
+	std::vector<double> grid_error(M);
+
+	double smacof_totalerror=0;
+
+	//Calculates error just after Smacof
+	for(unsigned i=0;i<M;i++){
 	   std::vector<double> p(mymap->getNumberOfProperties());
 	   std::vector<double> der(mymap->getNumberOfProperties());
-	   for(unsigned j=0;j<mymap->getNumberOfProperties();j++) p[j] = mymap->getProjectionCoordinate(i,j);
-	   
-	   GridSearch<DimensionalityReductionBase> myminimiser( this );
-	   myminimiser.minimise(p,&DimensionalityReductionBase::calculateStress);
-	   
-	   //Call Conjugate Gradient on it
-	  ConjugateGradient<DimensionalityReductionBase> myminimiser2( this );
-	  myminimiser2.minimise( cgtol, p, &DimensionalityReductionBase::calculateStress );
-	  
-	  // And finally copy the coordinates that you found to the map object.
-      // std::cout<<"Point after conjugate search"<<p[0]<<" "<<p[1]<<"\n";
-       for(unsigned j=0;j<p.size();++j) mymap->setProjectionCoordinate( i, j, p[j] ); 
-   }
+	   //Modify fframes for calculateStress routine	   
+	   setTargetVectorForPointwiseGlobalMinimisation(i,targets);
+	   for(unsigned k=0;k<mymap->getNumberOfProperties();k++) p[k] = mymap->getProjectionCoordinate(i,k);
+	   double error = calculateStress(p,der);
+	   smacof_error[i] = error;
+	   smacof_totalerror+=error;
+	}
+
+	std::ofstream myfile;
+	/* Routine to write Projected coordinates after Smacof */
+	myfile.open("Smacof.txt");
+	for(unsigned i=0;i<M;i++){
+		for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
+			myfile<<mymap->getProjectionCoordinate(i,j)<<" ";
+		}
+		myfile<<smacof_error[i];
+	myfile<<"\n";
+	}
+	myfile.close();
+	std::cout<<"total error after Smacof "<< smacof_totalerror <<"\n";	
+/////////////////////////////////////////////////////////////////////////////   
+
+	double cgtol = 1E-4;
+
+//Routine for grid search.
    
-	std::ostringstream fn;
-	fn << "filetarget" << cnt << ".txt";
-	// Open and write to the file
-	std::ofstream out(fn.str().c_str(),std::ios_base::binary);
-    for(unsigned i=0;i<M;i++){
+	for(int cnt=0;cnt<1;cnt++){
+		double minx,miny,maxx,maxy;
+		maxy = miny = mymap->getProjectionCoordinate(0,1);
+		maxx = minx = mymap->getProjectionCoordinate(0,0);
+	  
+		for(unsigned i=1;i<mymap->getNumberOfReferenceFrames();i++){
+			if(mymap->getProjectionCoordinate(i,0) < minx) minx = mymap->getProjectionCoordinate(i,0);
+			if(mymap->getProjectionCoordinate(i,1) < miny) miny = mymap->getProjectionCoordinate(i,1);
+			if(mymap->getProjectionCoordinate(i,0) > maxx) maxx = mymap->getProjectionCoordinate(i,0);
+			if(mymap->getProjectionCoordinate(i,1) > maxy) maxy = mymap->getProjectionCoordinate(i,1);
+		} 
+// padding for the grid 
+		minx=minx-0.2*minx;
+		miny=miny-0.2*miny;
+		maxx=maxx+0.2*minx;
+		maxy=maxy+0.2*miny;
+		double stepx = fabs(maxx-minx)/(double)ncgrid;
+		double stepy = fabs(maxy-miny)/(double)ncgrid; 
+       //Run Grid Search for each frame and get the correct projection.
+	   for(unsigned i=0;i<M;i++){
+		   std::vector<double> p(mymap->getNumberOfProperties());
+		   std::vector<double> der(mymap->getNumberOfProperties());
+		   //Copy frame coordinates to p.
+		   for(unsigned j=0;j<mymap->getNumberOfProperties();j++) p[j] = mymap->getProjectionCoordinate(i,j); 
+		   
+		   std::vector<double> temp(p.size());
+		   std::vector<double> grid_point(p.size());
+		   
+		   double min_eng,eng_pt,curr_x,curr_y;
+		   //To hold stress at each grid point.
+		   std::vector< std::vector<double> > stressgrid(ncgrid,std::vector<double>(ncgrid));
+		   //To hold x and y coordinates of grid points.
+		   std::vector<double> ptsinx;
+		   std::vector<double> ptsiny;	
+		   grid_point[0] = curr_x = minx;
+		   grid_point[1] = curr_y = miny;		   
+		   //Calculate stress at the frame point.
+		   min_eng = calculateStress(p,der) ;		
+		   
+		   for(int l=0;l<ncgrid;l++){
+				curr_x = minx + stepx*l;
+				ptsinx.push_back(curr_x);
+				grid_point[0] = curr_x;
+				for(int j=0;j<ncgrid;j++){					
+					curr_y = miny + stepy*j;
+					if(l==0) ptsiny.push_back(curr_y);
+					grid_point[1] = curr_y;
+					eng_pt = calculateStress(grid_point,der);
+					stressgrid[l][j] = eng_pt; //Store stress in the stress grid.
+					if(eng_pt < min_eng){
+						min_eng = eng_pt;			
+						p[0] = curr_x;p[1] = curr_y;	//Update the point if stress is less here.	
+					}		  		  
+				}
+		   }
+
+           setTargetVectorForPointwiseGlobalMinimisation(i,targets); //For the routine calculateStress.
+		   GridSearch<DimensionalityReductionBase> myminimiser( this );
+		   myminimiser.minimise(p,&DimensionalityReductionBase::calculateStress,stressgrid,nfgrid,min_eng,ptsinx,ptsiny);
+		   grid_error[i] = calculateStress(p,der);
+		   ConjugateGradient<DimensionalityReductionBase> myminimiser2( this );
+		   myminimiser2.minimise( cgtol, p, &DimensionalityReductionBase::calculateStress );
+		   		   
+		   for(unsigned j=0;j<p.size();++j) mymap->setProjectionCoordinate(i,j,p[j]); //Set the projected point in the mymap object.
+
+	   }
+	   
+	    myfile.open("gridsearch.txt");
+		for(unsigned i=0;i<M;i++){
+			for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
+			myfile<<mymap->getProjectionCoordinate(i,j)<<" ";
+			}
+			myfile<<grid_error[i]<<"\n";
+		}
+		myfile.close();		  
+	   
+		double grid_totalerror = 0;
+		for(unsigned q=0;q<M;q++){
+			std::vector<double> p(mymap->getNumberOfProperties());
+			std::vector<double> deri(mymap->getNumberOfProperties());	   
+			setTargetVectorForPointwiseGlobalMinimisation(q,targets);
+			for(unsigned k=0;k<mymap->getNumberOfProperties();k++) p[k] = mymap->getProjectionCoordinate(q,k);
+			double error = calculateStress(p,deri);
+			grid_error[q] = error;
+			grid_totalerror+=grid_error[q];
+		}
+	 
+	 std::cout<<"Total error after Grid Search"<< grid_totalerror <<"\n";
+	 std::ostringstream fn;
+	 fn << "filetarget" << cnt << ".txt";
+	 std::ofstream out(fn.str().c_str(),std::ios_base::binary);
+	 for(unsigned i=0;i<M;i++){
 		for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
 			out<<mymap->getProjectionCoordinate(i,j)<<" ";
 		}
+		out<<grid_error[i];
 		out<<"\n";
-	}
-	out.close();
-	
-  for(unsigned i=0;i<M;i++){
-	 for(unsigned j=0;j<i;j++){
-	   std::vector<double> pi(mymap->getNumberOfProperties());
-	   std::vector<double> deri(mymap->getNumberOfProperties());
-	   for(unsigned j=0;j<mymap->getNumberOfProperties();j++) pi[j] = mymap->getProjectionCoordinate(i,j);
-	   double error = calculateStress(pi,deri);
-	   ld_errors[i]+=error;
-       ld_errors[j]+=error;
 	 }
-  }
- for(std::vector<double>::iterator k=ld_errors.begin();k!=ld_errors.end();++k)
-	totalerror += *k;
+	 out.close();
 
- std::cout<<"total error "<< totalerror/(M*(M-1)) <<"\n";
- totalerror = 0.0;	       
-   
-   
-   
    }
 		  //~ 
 
