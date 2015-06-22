@@ -6,7 +6,6 @@
 
    This file is part of plumed, version 2.0.
 
-   plumed is free software: you can redistribute it and/or modify
    it under the terms of the GNU Lesser General Public License as published by
    the Free Software Foundation, either version 3 of the License, or
    (at your option) any later version.
@@ -50,7 +49,7 @@ private:
   bool nosmacof,doglobal;
   double smactol, smaptol, regulariser,ncgrid,nfgrid;
   SwitchingFunction lowdf, highdf;
-  unsigned niter;
+  unsigned niter,restart;
   double recalculateWeights( const Matrix<double>& Distances, const Matrix<double>& F, PointWiseMapping* mymap, Matrix<double>& Weights );
 public:
   static void registerKeywords( Keywords& keys );
@@ -75,6 +74,7 @@ void SketchMap::registerKeywords( Keywords& keys ){
   keys.add("compulsory","CGrid","10","Coarse Grid dimensions ");
   keys.add("compulsory","FGrid","100","Fine Grid dimensions");
   keys.add("compulsory","NITER","1","Number of times to repeat Grid Search");
+  keys.add("compulsory","READ_PROJECTION","0","take value 0 or 1. if 1 then read from projection file smap.in");
 }
 
 SketchMap::SketchMap( const ActionOptions& ao ):
@@ -97,6 +97,7 @@ DimensionalityReductionBase(ao)
   parse("CGrid",ncgrid);
   parse("FGrid",nfgrid);
   parse("NITER",niter);
+  parse("READ_PROJECTION",restart);
 }
 
 void SketchMap::calculateAllDistances( PointWiseMapping* mymap, Matrix<double>& targets ){
@@ -119,7 +120,8 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
 	// Calculate the value of sigma and the weights
 	unsigned M = mymap->getNumberOfReferenceFrames();
 	Matrix<double> Weights(M,M); double filt = recalculateWeights( Distances, getTargets(), mymap, Weights );
-
+        if (restart < 1) {
+        std::cout<<"doing smacoff\n";
 	unsigned MAXSTEPS=100; double newsig;
 	for(unsigned i=0;i<MAXSTEPS;++i){
 	  // Run the smacof algorithm
@@ -132,10 +134,24 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
 	  // Make initial sigma into new sigma so that the value of new sigma is used every time so that the error can be reduced
 	  filt=newsig;
 	}
-
+        }
 	//targets matrix contains the distances of each frame with other frames
 	Matrix<double> targets(mymap->modifyDmat());
 	targets = getTargets();
+        if (restart==1){
+        std::cout<<"RESTART RUN FROM smap.in FILE \n" ;
+	std::ifstream infile;
+	/* Routine to read Projected coordinates after Smacof */
+	infile.open("smap.in");
+	for(unsigned i=0;i<M;i++){
+		for(unsigned j=0;j<mymap->getNumberOfProperties();j++){
+	                std::vector<double> p(mymap->getNumberOfProperties());
+			infile>>p[j];
+                        mymap->setProjectionCoordinate(i,j,p[j]) ;
+		}
+	}
+	infile.close();
+        }
 
 	std::vector<double> smacof_error(M);
 	std::vector<double> cg_error(M);
@@ -219,6 +235,7 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
        //Run Grid Search for each frame and get the correct projection.
 	   for(unsigned i=0;i<M;i++){
 		   std::vector<double> p(mymap->getNumberOfProperties());
+		   std::vector<double> p_temp(mymap->getNumberOfProperties());
 		   std::vector<double> der(mymap->getNumberOfProperties());
 	           setTargetVectorForPointwiseGlobalMinimisation(i,targets);
 		   //Copy frame coordinates to p.
@@ -256,10 +273,15 @@ void SketchMap::generateProjections( PointWiseMapping* mymap ){
 				}
 		   }
 		   GridSearch<DimensionalityReductionBase> myminimiser( this );
-            //       double temp_en=min_eng;    
+                   double temp_en=min_eng;
+                   for(unsigned j=0;j<p.size();++j) p_temp[j]=p[j];    
 		   myminimiser.minimise(p,&DimensionalityReductionBase::calculateStress,stressgrid,nfgrid,min_eng,ptsinx,ptsiny);
-              //     if(min_eng < temp_en) std::cout<<"Fine Grid: Found" ;	
 		   grid_error[i] = calculateStress(p,der);
+                   // Sanity check if interpolated stress is really low
+                   if(grid_error[i] > temp_en) {
+                     std::cout<<" Wrong interpolated stress ! Not updating \r" ;
+                     for(unsigned j=0;j<p.size();++j) p[j]=p_temp[j];    
+                   }	
 		   ConjugateGradient<DimensionalityReductionBase> myminimiser2( this );
 		   myminimiser2.minimise( cgtol, p, &DimensionalityReductionBase::calculateStress );
 		   for(unsigned j=0;j<p.size();++j) mymap->setProjectionCoordinate(i,j,p[j]); //Set the projected point in the mymap object.

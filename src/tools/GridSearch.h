@@ -86,8 +86,8 @@ void GridSearch<FCLASS>::minimise( std::vector<double> &p, engf_pointer myfunc,s
 		  double x2u = ptsiny[j+1];
 		  int ncgrid=xlimit;
 		  int nmult=nfgrid/ncgrid;
-		  double dx=(x1l-x1u)/(double)nmult;
-		  double dy=(x2l-x2u)/(double)nmult;
+		  double dx=(x1u-x1l)/(double)nmult;
+		  double dy=(x2u-x2l)/(double)nmult;
 		  for (unsigned ii=0;ii<nmult;ii++){
 		    double x1 = x1l+ii*dx;
 		    for (unsigned jj=0;jj<nmult;jj++){
