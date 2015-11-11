@@ -186,6 +186,11 @@ public:
 */
   void readInputFile(std::string str);
 /**
+  Read a single action line
+  \param str is the line
+*/
+  void readAction(std::string str);
+/**
   Read an input string.
   \param str name of the string
 */
