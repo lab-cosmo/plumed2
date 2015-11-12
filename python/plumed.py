@@ -20,9 +20,11 @@ class Plumed:
 	elif (type(val) is long):
 		value=ct.byref(ct.c_double(float(val)))
 	elif (type(val) is numpy.ndarray):
+		# What if there is integer array?
 		# Make linear array
 		val=val.reshape(-1)
 		value=val.ctypes.data
 	else:
 		value=val
+	# Add the possibility to input tuples or lists.
         _libplumed.plumed_cmd(self.p, key, value)
