@@ -1,7 +1,13 @@
 import ctypes as ct
 import numpy
+from sys import platform as _platform
 
-_libplumed = ct.CDLL('libplumed.so')
+# Find operating system
+if _platform == "linux" or _platform == "linux2":
+  _libplumed = ct.CDLL('libplumed.so')
+elif _platform == "darwin":
+  # OS X
+  _libplumed = ct.CDLL('libplumed.dylib')
 
 class Plumed:
   def __init__(self):
