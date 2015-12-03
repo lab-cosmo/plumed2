@@ -77,6 +77,9 @@ for idx in range(num_loops):
     plumed.cmd("calc")
 
     # TODO: here get values instead of reading files
+    positions = plumed.grab("positions")
+    print 'outshape:', positions.shape
+    print 'outval:', positions
     
     # Stop the environment, delete 
     plumed.stop_plumed()
