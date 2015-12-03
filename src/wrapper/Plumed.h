@@ -226,7 +226,7 @@ void plumed_cmd(plumed p,const char*key,const void*val);
 /**
 
 */
-void plumed_grab(plumed p, const char*lab, int* ndim, int* dims, void* val );
+void plumed_grabdimension(plumed p, const char*lab, int* ndim, int* dims );
 
 /** \relates plumed
     \brief Destructor
@@ -277,7 +277,7 @@ void plumed_gcmd(const char* key,const void* val);
 /**
 
 */
-void plumed_ggrab(const char*lab, int* ndim, int* dims, void* val );
+void plumed_ggrabdimension(const char*lab, int* ndim, int* dims );
 
 /** \relates plumed
     \brief Destructor for the global interface.
@@ -357,7 +357,7 @@ public:
 /**
 
 */
-  static void ggrab(const char*lab, int* ndim, int* dims, void* val );
+  static void ggrabdimension(const char*lab, int* ndim, int* dims );
 /**
    Finalize global-plumed
 */
@@ -425,7 +425,7 @@ public:
   void cmd(const char*key,const void*val=NULL);
 /**
 */
-  void grab(const char*lab, int* ndim, int* dims, void* val );
+  void grabdimension(const char*lab, int* ndim, int* dims );
 /**
    Destructor
 
@@ -480,8 +480,8 @@ void Plumed::cmd(const char*key,const void*val){
 }
 
 inline
-void Plumed::grab(const char*lab, int* ndim, int* dims, void* val ){
-  plumed_grab(main,lab,ndim,dims,val);
+void Plumed::grabdimension(const char*lab, int* ndim, int* dims ){
+  plumed_grabdimension(main,lab,ndim,dims);
 }
 
 inline
@@ -505,8 +505,8 @@ void Plumed::gcmd(const char* key,const void* val){
 }
 
 inline
-void Plumed::ggrab(const char*lab, int* ndim, int* dims, void* val ){
-  plumed_ggrab(lab,ndim,dims,val);
+void Plumed::ggrabdimension(const char*lab, int* ndim, int* dims ){
+  plumed_ggrabdimension(lab,ndim,dims);
 }
 
 inline

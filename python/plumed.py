@@ -147,10 +147,10 @@ class Plumed(object):
         # API assumption: data is always float
         
         ndims_c = ct.c_int()
-        shape = numpy.zeros((10,), dtype=int) # maximum # of dimensions is 10
-        shape_c = shape.ctypes.data_as(ct.c_void_p)
+        shape = numpy.zeros((10,), dtype=numpy.int32) # maximum # of dimensions is 10
+        shape_c = shape.ctypes.data_as(ct.POINTER(ct.c_int))
         
-        _libplumed.plumed_grab_dimension(ct.c_void_p(self._p), ct.c_char_p(bytes(
+        _libplumed.plumed_grabdimension(ct.c_void_p(self._p), ct.c_char_p(bytes(
                     key.encode(encoding='UTF-8',errors='strict'))),
                     ct.byref(ndims_c), shape_c)
 
@@ -163,7 +163,7 @@ class Plumed(object):
             # Single variable
             value_c = ct.c_float()
             
-            _libplumed.plumed_grab_data(ct.c_void_p(self._p), ct.c_char_p(bytes(
+            _libplumed.plumed_grabdata(ct.c_void_p(self._p), ct.c_char_p(bytes(
                 key.encode(encoding='UTF-8',errors='strict'))),
                 ct.byref(value_c))
 
