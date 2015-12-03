@@ -53,8 +53,11 @@ for idx in range(num_loops):
     plumed.cmd("setKbT", 1.) # Not used but must be defined
     plumed.cmd("setNatoms",num_atoms)
     plumed.cmd("setPlumedDat","") # Empty, will use the 'action' command
-    # TODO: write to memory, or disable completely logging
-    plumed.cmd("setLogFile","test.log") # To avoid printing on screen
+    # TODO: write to memory
+    # Avoid printing on screen
+    #plumed.cmd("setLogFile","test.log") 
+    # Disable plumed's output completely
+    plumed.cmd("setLogFile","/dev/null")
 
     # Init
     plumed.cmd("init")
