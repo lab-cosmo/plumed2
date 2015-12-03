@@ -143,6 +143,42 @@ class Plumed(object):
         _libplumed.plumed_cmd(ct.c_void_p(self._p), ct.c_char_p(bytes(
                     key.encode(encoding='UTF-8',errors='strict'))), value)
 
+    def grab(self, key):
+        # API assumption: data is always float
+        
+        ndims_c = ct.c_int()
+        shape = numpy.zeros((10,), dtype=int) # maximum # of dimensions is 10
+        shape_c = shape.ctypes.data_as(ct.c_void_p)
+        
+        _libplumed.plumed_grab_dimension(ct.c_void_p(self._p), ct.c_char_p(bytes(
+                    key.encode(encoding='UTF-8',errors='strict'))),
+                    ct.byref(ndims_c), shape_c)
+
+        ndims = ndims_c.value
+        print "NDIMS:", ndims
+        print "SHAPE_FULL:", shape
+        print "SHAPE:", shape[:ndims]
+
+        if ndims == 0:
+            # Single variable
+            value_c = ct.c_float()
+            
+            _libplumed.plumed_grab_data(ct.c_void_p(self._p), ct.c_char_p(bytes(
+                key.encode(encoding='UTF-8',errors='strict'))),
+                ct.byref(value_c))
+
+            return value_c.value
+        else:
+            # Array
+            value = numpy.zeros(shape[:ndims], dtype=float)
+            value_c = value.ctypes.data_as(ct.c_void_p)
+            _libplumed.plumed_grab_data(ct.c_void_p(self._p), ct.c_char_p(bytes(
+                key.encode(encoding='UTF-8',errors='strict'))),
+                value_c)
+            return value
+            
+        
+        
     def _cmd_old(self, key, val=None):       
         """
         Some old implementation, do not use. To be removed eventually.
