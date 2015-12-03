@@ -31,6 +31,7 @@
 #include <set>
 #include "config/Config.h"
 #include <cstdlib>
+#include <stdint.h>
 #include "ActionRegister.h"
 #include "GREX.h"
 #include "tools/Exception.h"
@@ -47,7 +48,7 @@
 
 using namespace std;
 
-enum { SETBOX, SETPOSITIONS, SETMASSES, SETCHARGES, SETPOSITIONSX, SETPOSITIONSY, SETPOSITIONSZ, SETVIRIAL, SETENERGY, SETFORCES, SETFORCESX, SETFORCESY, SETFORCESZ, CALC, PREPAREDEPENDENCIES, SHAREDATA, PREPARECALC, PERFORMCALC, SETSTEP, SETSTEPLONG, SETATOMSNLOCAL, SETATOMSGATINDEX, SETATOMSFGATINDEX, SETATOMSCONTIGUOUS, CREATEFULLLIST, GETFULLLIST, CLEARFULLLIST, READ, ACTION, CLEAR, GETAPIVERSION, INIT, SETREALPRECISION, SETMDLENGTHUNITS, SETMDENERGYUNITS, SETMDTIMEUNITS, SETNATURALUNITS, SETNOVIRIAL, SETPLUMEDDAT, SETMPICOMM, SETMPIFCOMM, SETMPIMULTISIMCOMM, SETNATOMS, SETTIMESTEP, SETMDENGINE, SETLOG, SETLOGFILE, SETSTOPFLAG, GETEXCHANGESFLAG, SETEXCHANGESSEED, SETNUMBEROFREPLICAS, GETEXCHANGESLIST, RUNFINALJOBS, ISENERGYNEEDED, GETBIAS, SETKBT, SETRESTART };
+enum { SETBOX, SETPOSITIONS, SETMASSES, SETCHARGES, SETPOSITIONSX, SETPOSITIONSY, SETPOSITIONSZ, SETVIRIAL, SETENERGY, SETFORCES, SETFORCESX, SETFORCESY, SETFORCESZ, CALC, PREPAREDEPENDENCIES, SHAREDATA, PREPARECALC, PERFORMCALC, SETSTEP, SETSTEPLONG, SETATOMSNLOCAL, SETATOMSGATINDEX, SETATOMSFGATINDEX, SETATOMSCONTIGUOUS, CREATEFULLLIST, GETFULLLIST, CLEARFULLLIST, READ, ACTION, CLEAR, GETAPIVERSION, GETINTEGERPRECISION, INIT, SETREALPRECISION, SETMDLENGTHUNITS, SETMDENERGYUNITS, SETMDTIMEUNITS, SETNATURALUNITS, SETNOVIRIAL, SETPLUMEDDAT, SETMPICOMM, SETMPIFCOMM, SETMPIMULTISIMCOMM, SETNATOMS, SETTIMESTEP, SETMDENGINE, SETLOG, SETLOGFILE, SETSTOPFLAG, GETEXCHANGESFLAG, SETEXCHANGESSEED, SETNUMBEROFREPLICAS, GETEXCHANGESLIST, RUNFINALJOBS, ISENERGYNEEDED, GETBIAS, SETKBT, SETRESTART };
 
 namespace PLMD{
 
@@ -110,6 +111,7 @@ PlumedMain::PlumedMain():
   word_map["action"]=ACTION;
   word_map["clear"]=CLEAR;
   word_map["getApiVersion"]=GETAPIVERSION;
+  word_map["getIntegerPrecision"]=GETINTEGERPRECISION;
   word_map["init"]=INIT;
   word_map["setRealPrecision"]=SETREALPRECISION;
   word_map["setMDLengthUnits"]=SETMDLENGTHUNITS;
@@ -308,6 +310,10 @@ void PlumedMain::cmd(const std::string & word,void*val){
         CHECK_NULL(val,word);
         *(static_cast<int*>(val))=3;
         break;
+      case GETINTEGERPRECISION:
+        CHECK_NULL(val,word);
+        *(static_cast<uint8_t*>(val))=(sizeof(int));
+        break;
       // commands which can be used only before initialization:
       case INIT:
         CHECK_NOTINIT(initialized,word);
@@ -466,6 +472,24 @@ void PlumedMain::cmd(const std::string & word,void*val){
     plumed_merror("cannot interpret cmd(\"" + word + "\"). check plumed developers manual to see the available commands.");
   };
  stopwatch.pause();
+}
+
+////////////////////////////////////////////////////////////////////////
+
+void PlumedMain::grab_dimension( const std::string& key, int* ndim, int* dims  ){
+  if( key=="positions" ){
+      *ndim=2; dims[0]=atoms.getNatoms(); dims[1]=3;
+  }
+}
+
+void PlumedMain::grab_data( const std::string& key, void* outval ){
+  if( key=="positions" ){
+      double* p;
+      if( atoms.getRealPrecision()==sizeof(double)) p=static_cast<double*>( outval );
+      else if( atoms.getRealPrecision()==sizeof(float)) plumed_merror("yeah this needs fixing");    //float* p=static_cast<float*>( outval );
+      else plumed_merror("Unknown real precision type");
+      for(unsigned i=0;i<64*3;++i) p[i]=static_cast<double>(i); 
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////

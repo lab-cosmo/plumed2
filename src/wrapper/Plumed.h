@@ -223,6 +223,15 @@ plumed plumed_create(void);
 */
 void plumed_cmd(plumed p,const char*key,const void*val);
 
+/**
+
+*/
+void plumed_grabdimension(plumed p, const char*lab, int* ndim, int* dims );
+
+/**
+*/
+void plumed_grabdata(plumed p, const char*lab, void*data );
+
 /** \relates plumed
     \brief Destructor
 
@@ -268,6 +277,16 @@ void plumed_gcreate(void);
     \note Equivalent to plumed_cmd(), but skipping the plumed argument
 */
 void plumed_gcmd(const char* key,const void* val);
+
+/**
+
+*/
+void plumed_ggrabdimension(const char*lab, int* ndim, int* dims );
+
+/**
+
+*/
+void plumed_ggrabdata( const char* lab, void* data );
 
 /** \relates plumed
     \brief Destructor for the global interface.
@@ -345,6 +364,13 @@ public:
 */
   static void gcmd(const char* key,const void* val);
 /**
+
+*/
+  static void ggrabdimension(const char*lab, int* ndim, int* dims );
+/**
+*/
+  static void ggrabdata(const char*lab, void* data );
+/**
    Finalize global-plumed
 */
   static void gfinalize();
@@ -410,6 +436,12 @@ public:
 */
   void cmd(const char*key,const void*val=NULL);
 /**
+*/
+  void grabdimension(const char*lab, int* ndim, int* dims );
+/**
+*/
+  void grabdata(const char*lab, void* data );
+/**
    Destructor
 
    Destructor is virtual so as to allow correct inheritance from Plumed object.
@@ -463,6 +495,16 @@ void Plumed::cmd(const char*key,const void*val){
 }
 
 inline
+void Plumed::grabdimension(const char*lab, int* ndim, int* dims ){
+  plumed_grabdimension(main,lab,ndim,dims);
+}
+
+inline
+void Plumed::grabdata(const char*lab, void* data ){
+  plumed_grabdata(main,lab,data);
+}
+
+inline
 Plumed::~Plumed(){
   if(!reference)plumed_finalize(main);
 }
@@ -480,6 +522,16 @@ void Plumed::gcreate(){
 inline
 void Plumed::gcmd(const char* key,const void* val){
   plumed_gcmd(key,val);
+}
+
+inline
+void Plumed::ggrabdimension(const char*lab, int* ndim, int* dims ){
+  plumed_ggrabdimension(lab,ndim,dims);
+}
+
+inline
+void Plumed::ggrabdata(const char*lab, void* data ){
+  plumed_ggrabdata(lab,data);
 }
 
 inline
