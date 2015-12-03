@@ -31,6 +31,7 @@
 #include <set>
 #include "config/Config.h"
 #include <cstdlib>
+#include <stdint.h>
 #include "ActionRegister.h"
 #include "GREX.h"
 #include "tools/Exception.h"
@@ -311,7 +312,7 @@ void PlumedMain::cmd(const std::string & word,void*val){
         break;
       case GETINTEGERPRECISION:
         CHECK_NULL(val,word);
-        *(static_cast<int*>(val))=(sizeof(int));
+        *(static_cast<uint8_t*>(val))=(sizeof(int));
         break;
       // commands which can be used only before initialization:
       case INIT:
@@ -483,6 +484,11 @@ void PlumedMain::grab_dimension( const std::string& key, int* ndim, int* dims  )
 
 void PlumedMain::grab_data( const std::string& key, void* outval ){
   if( key=="positions" ){
+      double* p;
+      if( atoms.getRealPrecision()==sizeof(double)) p=static_cast<double*>( outval );
+      else if( atoms.getRealPrecision()==sizeof(float)) plumed_merror("yeah this needs fixing");    //float* p=static_cast<float*>( outval );
+      else plumed_merror("Unknown real precision type");
+      for(unsigned i=0;i<64*3;++i) p[i]=static_cast<double>(i); 
   }
 }
 

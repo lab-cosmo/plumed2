@@ -42,6 +42,7 @@ typedef struct {
   void*(*create)(void);
   void(*cmd)(void*,const char*,const void*);
   void(*grabdimension)(void*,const char*,int*,int*); 
+  void(*grabdata)(void*,const char*,void*);
   void(*finalize)(void*);
 } plumed_plumedmain_function_holder;
 
@@ -55,12 +56,14 @@ plumed_plumedmain_function_holder* plumed_kernel_register(const plumed_plumedmai
 void*plumedmain_create(void);
 void plumedmain_cmd(void*,const char*,const void*);
 void plumedmain_grabdimension(void*,const char*,int*,int*);
+void plumedmain_grabdata(void*,const char*,void*);
 void plumedmain_finalize(void*);
 #else
 /* dummy interface */
 void*plumed_dummy_create(void);
 void plumed_dummy_cmd(void*,const char*,const void*);
 void plumed_dummy_grabdimension(void*,const char*,int*,int*);
+void plumed_dummy_grabdata(void*,const char*,void*);
 void plumed_dummy_finalize(void*);
 #endif
 
@@ -105,6 +108,12 @@ void plumed_dummy_grabdimension(void*p,const char*key,int*n,int*dims){
   exit(1);
 }
 
+void plumed_dummy_grabdata(void*p,const char*key,void*data){
+  (void) p;    /* avoid warning on unused parameter */
+  (void) key;  /* avoid warning on unused parameter */
+  (void) data; /* avoid warning on unused parameter */
+}
+
 void plumed_dummy_finalize(void*p){
   (void) p; /* avoid warning on unused parameter */
 }
@@ -118,7 +127,7 @@ plumed_plumedmain_function_holder* plumed_kernel_register(const plumed_plumedmai
   to statically bound plumedmain_create,plumedmain_cmd,plumedmain_finalize and
   cannot be changed. This saves from mis-set values for PLUMED_KERNEL
 */
-  static plumed_plumedmain_function_holder g={plumedmain_create,plumedmain_cmd,plumedmain_grabdimension,plumedmain_finalize};
+  static plumed_plumedmain_function_holder g={plumedmain_create,plumedmain_cmd,plumedmain_grabdimension,plumedmain_grabdata,plumedmain_finalize};
   (void) f; /* avoid warning on unused parameter */
   return &g;
 #else
@@ -130,7 +139,7 @@ plumed_plumedmain_function_holder* plumed_kernel_register(const plumed_plumedmai
   This is why we set "first=0" only *after* loading the shared library.
   Also notice that we should put some guard here for safe multithread calculations.
 */
-  static plumed_plumedmain_function_holder g={plumed_dummy_create,plumed_dummy_cmd,plumed_dummy_grabdimension,plumed_dummy_finalize};
+  static plumed_plumedmain_function_holder g={plumed_dummy_create,plumed_dummy_cmd,plumed_dummy_grabdimension,plumed_dummy_grabdata,plumed_dummy_finalize};
   static int first=1;
 #ifdef __PLUMED_HAS_DLOPEN
   char* path;
@@ -185,6 +194,14 @@ void plumed_grabdimension(plumed p, const char*lab, int* ndim, int* dims ){
   (*(h->grabdimension))(p.p,lab,ndim,dims);
 }
 
+void plumed_grabdata(plumed p, const char*lab, void* data ){
+  plumed_plumedmain_function_holder*h=plumed_kernel_register(NULL);
+  assert(p.p);
+  assert(h);
+  assert(h->grabdata);
+  (*(h->grabdata))(p.p,lab,data);
+}
+
 void plumed_finalize(plumed p){
   plumed_plumedmain_function_holder*h=plumed_kernel_register(NULL);
   assert(p.p);
@@ -220,6 +237,11 @@ void plumed_ggrabdimension(const char*lab, int* ndim, int* dims ){
   assert(gmain.p);
   plumed_grabdimension(gmain,lab,ndim,dims);
 } 
+
+void plumed_ggrabdata(const char*lab, void* data ){
+  assert(gmain.p);
+  plumed_grabdata(gmain,lab,data);
+}
 
 void plumed_gfinalize(void){
   assert(gmain.p);
@@ -311,6 +333,10 @@ void plumed_f_ggrabdimension(char*lab, int* ndim, int* dims ){
   plumed_ggrabdimension(lab,ndim,dims);
 }
 
+void plumed_f_ggrabdata(char*lab, void* data ){
+  plumed_ggrabdata(lab,data);
+}
+
 void plumed_f_gfinalize(void){
   plumed_gfinalize();
 }
@@ -331,6 +357,11 @@ void plumed_f_grabdimension(char*lab, int* ndim, int* dims ){
   plumed p;
   p=plumed_f2c(lab);
   plumed_grabdimension(p,lab,ndim,dims);
+}
+
+void plumed_f_grabdata(char*lab, void*data){
+  plumed p;
+  plumed_grabdata(p,lab,data);
 }
 
 void plumed_f_finalize(char*c){
@@ -359,7 +390,8 @@ void plumed_f_global(char*c){
 
 IMPLEMENT(plumed_f_gcreate,     PLUMED_F_GCREATE,     (void){plumed_f_gcreate();})
 IMPLEMENT(plumed_f_gcmd,        PLUMED_F_GCMD,        (char* key,void* val){plumed_f_gcmd(key,val);})
-IMPLEMENT(plumed_f_ggrabdimension,       PLUMED_F_GGRABDIMENSION,       (char*lab, int* ndim, int* dims ){plumed_f_ggrabdimension(lab,ndim,dims);})
+IMPLEMENT(plumed_f_ggrabdimension,       PLUMED_F_GGRABDIMENSION,      (char*lab, int* ndim, int* dims ){plumed_f_ggrabdimension(lab,ndim,dims);})
+IMPLEMENT(plumed_f_ggrabdata,   PLUMED_F_GRABDATA,    (char*lab, void* data){plumed_f_grabdata(lab,data);})
 IMPLEMENT(plumed_f_gfinalize,   PLUMED_F_GFINALIZE,   (void){plumed_f_gfinalize();})
 IMPLEMENT(plumed_f_ginitialized,PLUMED_F_GINITIALIZED,(int*i){plumed_f_ginitialized(i);})
 IMPLEMENT(plumed_f_create,      PLUMED_F_CREATE,      (char*c){plumed_f_create(c);})
