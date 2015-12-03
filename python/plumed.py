@@ -27,6 +27,16 @@ class Plumed(object):
         :param start: if True, also start the plumed environment
         """
         self._p = None
+        # The type of integer in the compiled version of plumed
+        # will be a numpy dtype, either int32 or int64
+        # It is stored the first time start_plumed is called, and
+        # it is NOT cleared at stop_plumed (for efficiency reasons,
+        # assuming the library is not recompiled with different int
+        # size while the python script is running...)
+        # self._int_type is the numpy integer type
+        self._int_type = None
+        # self._c_int_type is the python ctypes integer type
+        self._c_int_type = None
         if start:
             self.start_plumed()
         # Will cache here values to avoid garbage collection
@@ -54,6 +64,26 @@ class Plumed(object):
             f = _libplumed.plumed_create
             f.restype = ct.c_void_p
             self._p = f()
+
+            # Here I detect the integer size (# of bytes)
+            if self._int_type is None:
+                # I know that Plumed returns this as a unsigned 8bit integer
+                # (to be machine-independent: at this point, we still do not
+                # know the integer size!!)
+                int_prec_c = ct.c_uint8()
+                # Manual call to plumed_cmd to avoid the logic inside self.cmd()
+                _libplumed.plumed_cmd(ct.c_void_p(self._p), ct.c_char_p(bytes(
+                    "getIntegerPrecision".encode(encoding='UTF-8',errors='strict'))), 
+                    ct.byref(int_prec_c))
+                if int_prec_c.value == 4:
+                    self._int_type = numpy.int32
+                    self._c_int_type = ct.c_int32
+                elif int_prec_c.value == 8:
+                    self._int_type = numpy.int64
+                    self._c_int_type = ct.c_int64
+                else:
+                    raise PlumedError("Internal errror: unrecognized value of the integer "
+                                      "size ({})".format(int_prec_c.value))
         else:
             raise PlumedError("The Plumed environment has already been started!")
 
@@ -110,10 +140,6 @@ class Plumed(object):
                if (isinstance(val, (list,tuple)):
                    internal_val = numpy.array(val)
 
-           - What is the size of integers? If in C++ are Int32, and in Python are Int64,
-             one should be careful and cast them (things may work for single values, because
-             the higher 32 bits follow and therefore one does not notice, but it is a problem
-             for arrays. Use e.g. array.astype(np.int32).
            - Should probably also check the size of floats/doubles (assumed to be 64 bits here)
            - I'm not sure that the way we are treating now arrays with ascontiguousarray,
              and strings by creating bytes(val.encode(...)), are safe from garbage collection.
@@ -123,20 +149,29 @@ class Plumed(object):
             raise PlumedError("The plumed environment has not been started yet. "
                              "Call the start_plumed() method first.")
 
+        if self._int_type is None:
+            raise PlumedError("Error! The size of integer is not set! This is an internal error.")
+        
         # Handle different data types
         # I try to minimize the number of checks as they are quite expensive in python
         if val is None:
             value = None
         elif isinstance(val, (int, long)):
-            value=ct.byref(ct.c_int(val))
+            # Cast to the correct int type
+            value=ct.byref(self._c_int_type(self._int_type(val)))
         elif isinstance(val, float):
             value=ct.byref(ct.c_double(val))
         elif isinstance(val, basestring):
             value=ct.c_char_p(bytes(val.encode(encoding='UTF-8',errors='strict')))
         elif isinstance(val, numpy.ndarray):
-            if val.dtype not in [float, int]:
-                raise ValueError("Unknown array type ({})".format(str(flval.dtype)))
-            value = numpy.ascontiguousarray(val).ctypes.data_as(ct.c_void_p)
+            if numpy.issubdtype(val.dtype, float):
+                value = numpy.ascontiguousarray(val).ctypes.data_as(ct.c_void_p)
+            elif numpy.issubdtype(val.dtype, int):
+                # If it's integer, cast it first to the correct type
+                value = numpy.ascontiguousarray(val.astype(self._int_type)).ctypes.data_as(
+                    ct.c_void_p)
+            else:
+                raise ValueError("Unknown array type ({})".format(val.dtype.name))
         else:
             raise ValueError("Unknown value type ({})".format(str(type(val))))
 
@@ -146,9 +181,9 @@ class Plumed(object):
     def grab(self, key):
         # API assumption: data is always float
         
-        ndims_c = ct.c_int()
-        shape = numpy.zeros((10,), dtype=numpy.int32) # maximum # of dimensions is 10
-        shape_c = shape.ctypes.data_as(ct.POINTER(ct.c_int))
+        ndims_c = self._c_int_type()
+        shape = numpy.zeros((10,), dtype=self._int_type) # maximum # of dimensions is 10
+        shape_c = shape.ctypes.data_as(ct.POINTER(self._c_int_type))
         
         _libplumed.plumed_grabdimension(ct.c_void_p(self._p), ct.c_char_p(bytes(
                     key.encode(encoding='UTF-8',errors='strict'))),
@@ -203,7 +238,7 @@ class Plumed(object):
         if val is None:
             value = None
         elif isinstance(val, (int, long)):
-            value=ct.byref(ct.c_int(val))
+            value=ct.byref(self._c_int_type(val))
         elif isinstance(val, float):
             value=ct.byref(ct.c_double(val))
         elif isinstance(val, basestring):
@@ -229,7 +264,7 @@ class Plumed(object):
                     elif val.dtype == int:
                         ## WARNING! PROBABLY, IF IN C++ INT ARE INT32, WE SHOULD CONVERT THIS TO INT32!!
                         ## WITH .astype(np.int32)
-                        value = flval.ctypes.data_as(ct.POINTER(ct.c_int))
+                        value = flval.ctypes.data_as(ct.POINTER(self._c_int_type))
                     else:
                         raise ValueError("Unknown array type ({})".format(str(flval.dtype)))
                     if key == 'setPositions':
@@ -240,7 +275,7 @@ class Plumed(object):
                         #value=flval.ctypes.data
                         value = numpy.ascontiguousarray(val).ctypes.data_as(ct.POINTER(ct.c_double))
                     elif val.dtype == int:
-                        value = numpy.ascontiguousarray(val).ctypes.data_as(ct.POINTER(ct.c_int))
+                        value = numpy.ascontiguousarray(val).ctypes.data_as(ct.POINTER(self._c_int_type))
                     else:
                         raise ValueError("Unknown array type ({})".format(val.dtype.name))
         else:
