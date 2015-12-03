@@ -190,9 +190,9 @@ class Plumed(object):
                     ct.byref(ndims_c), shape_c)
 
         ndims = ndims_c.value
-        print "NDIMS:", ndims
-        print "SHAPE_FULL:", shape
-        print "SHAPE:", shape[:ndims]
+        # print "NDIMS:", ndims
+        # print "SHAPE_FULL:", shape
+        # print "SHAPE:", shape[:ndims]
 
         if ndims == 0:
             # Single variable
@@ -207,7 +207,7 @@ class Plumed(object):
             # Array
             value = numpy.zeros(shape[:ndims], dtype=float)
             value_c = value.ctypes.data_as(ct.c_void_p)
-            _libplumed.plumed_grab_data(ct.c_void_p(self._p), ct.c_char_p(bytes(
+            _libplumed.plumed_grabdata(ct.c_void_p(self._p), ct.c_char_p(bytes(
                 key.encode(encoding='UTF-8',errors='strict'))),
                 value_c)
             return value
