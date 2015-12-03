@@ -1,52 +1,93 @@
 #!/usr/bin/env python
+import os
+import sys
+import time
 
 import numpy as np
 from plumed import *
 from tools import *
-import sys
 
 # Read XYZ
-filename= "methane.xyz"
+filename= os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    os.pardir,
+    os.pardir,
+    "regtest", "crystallization", "rt-q6", "64.xyz")
 atom_type, pos = read_xyz(filename)
-num_atoms=pos.shape[0]
-# Define a few things
-step=40
-timestep=0.001
-masses=np.ones(num_atoms)
-charges=np.zeros(num_atoms)
-box=np.diag(10*np.ones(3))
-forces=np.zeros([num_atoms,3])
-virial=np.zeros([3,3])
-temp=3.
 
-# Intialize class instance
+# Define a few things
+step=0
+box=np.diag(12.41642*np.ones(3,dtype=float))
+virial=np.zeros((3,3),dtype=float)
+
+# Repeat the call multiple times to see if 
+# there are problems with multiple start/stop of the environment, and
+# for more accurate timing. Remember to delete the bck* files before running!
+num_loops = 50
+
+# Create the class only once
 plumed = Plumed()
 
-# Pre-init settings
-plumed.cmd("setMDEngine","none")
-plumed.cmd("setPlumedDat","")
-#plumed.cmd("setLogFile","plumed.log")
-plumed.cmd("setNatoms",num_atoms)
-plumed.cmd("setTimestep",timestep)
-plumed.cmd("setKbT",temp)
+# Start time
+t1 = time.time()
 
-# Init
-plumed.cmd("init")
+for idx in range(num_loops):
+    # Create appropriate arrays and values on the fly;
+    # needed if the structure change at each loop (that is
+    # the correct behavior)
+    num_atoms=pos.shape[0]
+    # Unfortunately, these need to be defined otherwise plumed complains
+    masses=np.ones(num_atoms,dtype=float)
+    forces=np.zeros((num_atoms,3),dtype=float)
+    charges=np.zeros(num_atoms,dtype=float)
+    
+    # Start the environment
+    plumed.start_plumed()
 
-# Post-init settings
-plumed.cmd("setStep",step)
-# This is new. I had to change PlumedMain.cpp to do this.
-plumed.cmd("action","DISTANCE LABEL=l6 ATOMS=3,4")
-plumed.cmd("action","PRINT ARG=l6 FILE=COLVAR STRIDE=1")
-plumed.cmd("setMasses",masses)
-plumed.cmd("setCharges",charges)
-plumed.cmd("setBox",box)
-plumed.cmd("setPositions",pos)
-plumed.cmd("setForces",forces)
-plumed.cmd("setVirial",virial)
+    # Pre-init settings 
+    ## This one should be probably hiddend in the Plumed class
+    plumed.cmd("setRealPrecision", 8) # float64
 
-# Calculate
-plumed.cmd("calc")
+    plumed.cmd("setMDEngine","none")
+    plumed.cmd("setTimestep", 1.) # Not used but must be defined
+    plumed.cmd("setKbT", 1.) # Not used but must be defined
+    plumed.cmd("setNatoms",num_atoms)
+    plumed.cmd("setPlumedDat","") # Empty, will use the 'action' command
+    # TODO: write to memory, or disable completely logging
+    plumed.cmd("setLogFile","test.log") # To avoid printing on screen
+
+    # Init
+    plumed.cmd("init")
+    # New command by Pablo Piaggi to send direclty commands that would be written
+    # in the input file.
+    # Check if atoms were correctly received by Plumed.
+    plumed.cmd("action", "DUMPATOMS ATOMS=1-64 FILE=testout.xyz")
+    # Calculate Q6
+    plumed.cmd("action","Q6 SPECIES=1-32 D_0=3.0 R_0=1.5 MEAN LABEL=q6")
+    plumed.cmd("action","PRINT ARG=q6.* FILE=colv")
+    # Post-init settings
+    plumed.cmd("setStep",step)
+    plumed.cmd("setBox",box)
+    plumed.cmd("setPositions",pos)
+    plumed.cmd("setMasses", masses)
+    plumed.cmd("setCharges", charges)
+    plumed.cmd("setForces", forces)
+    plumed.cmd("setVirial", virial)
+    # Calculate
+    plumed.cmd("calc")
+
+    # TODO: here get values instead of reading files
+    
+    # Stop the environment, delete 
+    plumed.stop_plumed()
+
+# End time
+t2 = time.time()
+dt = (t2-t1)*1000. # ms
+
+print >>sys.stderr, "Total time: {:4.1f} ms".format(dt)
+print >>sys.stderr, "Num loops:  {:4d}".format(num_loops)
+print >>sys.stderr, "Time/loop:  {:4.1f} ms".format(dt/float(num_loops))
 
 # TO DO: Write wrapper for actions. For instance "DISTANCE LABEL=l6 ATOMS=3,4" = Distance(label="l6",atoms)
 # TO DO: Wrappers to get values back from actions. Very important!
