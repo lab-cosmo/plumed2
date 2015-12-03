@@ -1,5 +1,6 @@
 import ctypes as ct
 from ctypes.util import find_library
+import sys
 
 import numpy
 
@@ -7,10 +8,15 @@ import numpy
 ## it will use the right extension depending on the architecture
 ## (.dylib on mac, .so on linux, ...)
 ## Remember to source the 'sourceme.sh' file first.
-libraryname = find_library('libplumed')
-if libraryname is None:
-    raise ImportError("Unable to find the PLUMED library.")
-_libplumed = ct.CDLL(libraryname)
+## The previous code was not working on linux. Until it is solved
+## in a cleaner fashion, I will leave linux as a special case.
+if sys.platform=="linux" or sys.platform=="linux2":
+	_libplumed = ct.CDLL("libplumed.so")
+else:
+	libraryname = find_library('libplumed')
+	if libraryname is None:
+    		raise ImportError("Unable to find the PLUMED library.")
+	_libplumed = ct.CDLL(libraryname)
 
 class PlumedError(Exception):
     """
@@ -23,7 +29,6 @@ class Plumed(object):
         """
         Init an empty Plumed class. For efficiency, don't start the
         plumed environment, by default.
-
         :param start: if True, also start the plumed environment
         """
         self._p = None
@@ -44,7 +49,6 @@ class Plumed(object):
     def start_plumed(self):
         """
         Start the plumed environment. 
-
         :raise PlumedError: if the Plumed environment has already been started.
         """
         if self._p is None:
@@ -60,7 +64,6 @@ class Plumed(object):
     def stop_plumed(self):
         """
         Stop the plumed environment. 
-
         :raise PlumedError: if the Plumed environment has been already stopped,
            or was never started.
         """
@@ -76,17 +79,13 @@ class Plumed(object):
     def cmd(self, key, val=None):
         """
         Call the Plumed 'cmd' command with a key and a value.
-
         :param key: a string with the command name
         :param value: a value with the correct type expected by Plumed. Type is checked
           for conversion to the correct C type, but no check is done on the type expected
           by Plumed.
           Only int, float, strings, and numpy arrays of floats or ints are currently supported.
-
         :raise ValueError: if the value is not among the expected ones
-
         :return: None for the time being.
-
         .. note:: Some technical notes:
            
           - it is not needed to flatten the array. But if you do, you need to cache
@@ -102,14 +101,12 @@ class Plumed(object):
             Actually here I directly use ``arr.ctypes.data_as(ct.c_void_p)``
             since Plumed accepts void pointers and I can reduce the number of type checks in
             python, in this way.
-
         .. todo:: Things to check:
            - tuples and lists are not accepted for the time being. If needed to simplify
              the user interface, convert them transparently to arrays with something like::
              
                if (isinstance(val, (list,tuple)):
                    internal_val = numpy.array(val)
-
            - What is the size of integers? If in C++ are Int32, and in Python are Int64,
              one should be careful and cast them (things may work for single values, because
              the higher 32 bits follow and therefore one does not notice, but it is a problem
@@ -213,4 +210,4 @@ class Plumed(object):
 
         _libplumed.plumed_cmd(ct.c_void_p(self._p), ct.c_char_p(key), value)
         #if debug_print:
-        #    print 'A', key, numpy.ctypeslib.as_array(value,shape=(flval.size,))        
+        #    print 'A', key, numpy.ctypeslib.as_array(value,shape=(flval.size,))     
