@@ -37,6 +37,7 @@ using namespace std;
 typedef struct {
   void*(*create)();
   void(*cmd)(void*,const char*,const void*);
+  void(*grab_dimension)(void*,const char*,int*,int*);
   void(*finalize)(void*);
 } plumed_plumedmain_function_holder;
 
@@ -50,6 +51,11 @@ extern "C" void*plumedmain_create(){
 extern "C" void plumedmain_cmd(void*plumed,const char*key,const void*val){
   plumed_massert(plumed,"trying to use a plumed object which is not initialized");
   static_cast<PLMD::PlumedMain*>(plumed)->cmd(key,val);
+}
+
+extern "C" void plumedmain_grabdimension(void*plumed,const char*key,int*ndim,int*dims){
+  plumed_massert(plumed,"trying to use a plumed object which is not initialized");
+  static_cast<PLMD::PlumedMain*>(plumed)->grab_dimension(key,ndim,dims);
 }
 
 extern "C" void plumedmain_finalize(void*plumed){
@@ -69,7 +75,7 @@ namespace PLMD{
 static class PlumedMainInitializer{
   public:
   PlumedMainInitializer(){
-    plumed_plumedmain_function_holder fh={plumedmain_create,plumedmain_cmd,plumedmain_finalize};
+    plumed_plumedmain_function_holder fh={plumedmain_create,plumedmain_cmd,plumedmain_grabdimension,plumedmain_finalize};
     plumed_kernel_register(&fh);
   }
 } RegisterMe;

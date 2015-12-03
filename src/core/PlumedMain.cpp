@@ -470,6 +470,19 @@ void PlumedMain::cmd(const std::string & word,void*val){
 
 ////////////////////////////////////////////////////////////////////////
 
+void PlumedMain::grab_dimension( const std::string& key, int* ndim, int* dims  ){
+  if( key=="positions" ){
+      *ndim=2; dims[0]=atoms.getNatoms(); dims[1]=3;
+  }
+}
+
+void PlumedMain::grab_data( const std::string& key, void* outval ){
+  if( key=="positions" ){
+  }
+}
+
+////////////////////////////////////////////////////////////////////////
+
 void PlumedMain::init(){
 // check that initialization just happens once
   initialized=true;

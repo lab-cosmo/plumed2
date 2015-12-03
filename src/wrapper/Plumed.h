@@ -223,6 +223,11 @@ plumed plumed_create(void);
 */
 void plumed_cmd(plumed p,const char*key,const void*val);
 
+/**
+
+*/
+void plumed_grab(plumed p, const char*lab, int* ndim, int* dims, void* val );
+
 /** \relates plumed
     \brief Destructor
 
@@ -268,6 +273,11 @@ void plumed_gcreate(void);
     \note Equivalent to plumed_cmd(), but skipping the plumed argument
 */
 void plumed_gcmd(const char* key,const void* val);
+
+/**
+
+*/
+void plumed_ggrab(const char*lab, int* ndim, int* dims, void* val );
 
 /** \relates plumed
     \brief Destructor for the global interface.
@@ -345,6 +355,10 @@ public:
 */
   static void gcmd(const char* key,const void* val);
 /**
+
+*/
+  static void ggrab(const char*lab, int* ndim, int* dims, void* val );
+/**
    Finalize global-plumed
 */
   static void gfinalize();
@@ -410,6 +424,9 @@ public:
 */
   void cmd(const char*key,const void*val=NULL);
 /**
+*/
+  void grab(const char*lab, int* ndim, int* dims, void* val );
+/**
    Destructor
 
    Destructor is virtual so as to allow correct inheritance from Plumed object.
@@ -463,6 +480,11 @@ void Plumed::cmd(const char*key,const void*val){
 }
 
 inline
+void Plumed::grab(const char*lab, int* ndim, int* dims, void* val ){
+  plumed_grab(main,lab,ndim,dims,val);
+}
+
+inline
 Plumed::~Plumed(){
   if(!reference)plumed_finalize(main);
 }
@@ -480,6 +502,11 @@ void Plumed::gcreate(){
 inline
 void Plumed::gcmd(const char* key,const void* val){
   plumed_gcmd(key,val);
+}
+
+inline
+void Plumed::ggrab(const char*lab, int* ndim, int* dims, void* val ){
+  plumed_ggrab(lab,ndim,dims,val);
 }
 
 inline

@@ -181,6 +181,12 @@ public:
   void cmd(const std::string&key,void*val=NULL);
   ~PlumedMain();
 /**
+*/
+  void grab_dimension(const std::string& key, int* ndim, int* dims ); 
+/**
+*/
+  void grab_data(const std::string& key, void* outval );
+/**
   Read an input file.
   \param str name of the file
 */
