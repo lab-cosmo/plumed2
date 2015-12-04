@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2013,2014 The plumed team
+   Copyright (c) 2013-2015 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed-code.org for more information.
@@ -73,13 +73,11 @@ private:
   SwitchingFunction switchingFunction;
 public:
   static void registerKeywords( Keywords& keys );
-  NumberOfLinks(const ActionOptions&);
+  explicit NumberOfLinks(const ActionOptions&);
 /// Do the stuff with the switching functions
-  void calculateWeight();
+  void calculateWeight( const unsigned& taskCode, AtomValuePack& myatoms ) const ;
 /// Actually do the calculation
-  double compute();
-/// This returns the position of the central atom
-  Vector getCentralAtom();  
+  double compute( const unsigned& tindex, AtomValuePack& myatoms ) const ;
 /// Is the variable periodic
   bool isPeriodic(){ return false; }
 };
@@ -89,7 +87,7 @@ PLUMED_REGISTER_ACTION(NumberOfLinks,"NLINKS")
 void NumberOfLinks::registerKeywords( Keywords& keys ){
   MultiColvarFunction::registerKeywords( keys );
   keys.add("compulsory","NN","6","The n parameter of the switching function ");
-  keys.add("compulsory","MM","12","The m parameter of the switching function ");
+  keys.add("compulsory","MM","0","The m parameter of the switching function; 0 implies 2*NN");
   keys.add("compulsory","D_0","0.0","The d_0 parameter of the switching function");
   keys.add("compulsory","R_0","The r_0 parameter of the switching function");
   keys.add("optional","SWITCH","This keyword is used if you want to employ an alternative to the continuous swiching function defined above. "
@@ -119,18 +117,10 @@ MultiColvarFunction(ao)
      switchingFunction.set(nn,mm,r_0,d_0);
   }
   log.printf("  calculating number of links with atoms separation of %s\n",( switchingFunction.description() ).c_str() );
-  buildAtomListWithPairs( false ); setLinkCellCutoff( 2.*switchingFunction.get_dmax() ); 
+  buildAtomListWithPairs( false ); setLinkCellCutoff( switchingFunction.get_dmax() ); 
 
   for(unsigned i=0;i<getNumberOfBaseMultiColvars();++i){
     if( !getBaseMultiColvar(i)->hasDifferentiableOrientation() ) error("cannot use multicolvar of type " + getBaseMultiColvar(i)->getName() );
-  }
-  
-  // Resize these ready for business
-  if( getBaseMultiColvar(0)->getNumberOfQuantities()==5 ){ 
-      orient0.resize( 1 ); orient1.resize( 1 ); 
-  } else { 
-      orient0.resize( getBaseMultiColvar(0)->getNumberOfQuantities() - 5 ); 
-      orient1.resize( getBaseMultiColvar(0)->getNumberOfQuantities() - 5 );
   }
 
   // Create holders for the collective variable
@@ -140,36 +130,40 @@ MultiColvarFunction(ao)
   readVesselKeywords();
 }
 
-void NumberOfLinks::calculateWeight(){
-  Vector distance = getSeparation( getPositionOfCentralAtom(0), getPositionOfCentralAtom(1) );
+void NumberOfLinks::calculateWeight( const unsigned& taskCode, AtomValuePack& myatoms ) const {
+  Vector distance = getSeparation( myatoms.getPosition(0), myatoms.getPosition(1) );
   double dfunc, sw = switchingFunction.calculateSqr( distance.modulo2(), dfunc );
-  addCentralAtomsDerivatives( 0, 1, (-dfunc)*distance );
-  addCentralAtomsDerivatives( 1, 1, (dfunc)*distance );
-  MultiColvarBase::addBoxDerivatives( 1, (-dfunc)*Tensor(distance,distance) );
-  setElementValue(1,sw);
+  myatoms.setValue(0,sw);
+
+  if( !doNotCalculateDerivatives() ){
+      addAtomDerivatives( 0, 0, (-dfunc)*distance, myatoms );
+      addAtomDerivatives( 0, 1, (dfunc)*distance, myatoms );
+      myatoms.addBoxDerivatives( 0, (-dfunc)*Tensor(distance,distance) ); 
+  }
 }
 
-double NumberOfLinks::compute(){
-   getVectorForBaseTask( 0, orient0 ); 
-   getVectorForBaseTask( 1, orient1 );
+double NumberOfLinks::compute( const unsigned& tindex, AtomValuePack& myatoms ) const {
+   if( getBaseMultiColvar(0)->getNumberOfQuantities()<3 ) return 1.0; 
+
+   unsigned ncomp=getBaseMultiColvar(0)->getNumberOfQuantities();
+
+   std::vector<double> orient0( ncomp ), orient1( ncomp );
+   getVectorForTask( myatoms.getIndex(0), true, orient0 ); 
+   getVectorForTask( myatoms.getIndex(1), true, orient1 );
 
    double dot=0;
-   for(unsigned k=0;k<orient0.size();++k){
+   for(unsigned k=2;k<orient0.size();++k){
        dot+=orient0[k]*orient1[k];
    }
-//   for(unsigned k=0;k<orient0.size();++k){
-//      orient0[k]*=dot_df; orient1[k]*=dot_df;
-//   }
-   addOrientationDerivatives( 0, orient1 );
-   addOrientationDerivatives( 1, orient0 );
+
+   if( !doNotCalculateDerivatives() ){
+     MultiValue& myder0=getVectorDerivatives( myatoms.getIndex(0), true );
+     mergeVectorDerivatives( 1, 2, orient1.size(), myatoms.getIndex(0), orient1, myder0, myatoms );
+     MultiValue& myder1=getVectorDerivatives( myatoms.getIndex(1), true ); 
+     mergeVectorDerivatives( 1, 2, orient0.size(), myatoms.getIndex(1), orient0, myder1, myatoms );
+   }
 
    return dot;
-}
-
-Vector NumberOfLinks::getCentralAtom(){
-   addDerivativeOfCentralAtomPos( 0, 0.5*Tensor::identity() );
-   addDerivativeOfCentralAtomPos( 1, 0.5*Tensor::identity() );
-   return 0.5*( getPositionOfCentralAtom(0) + getPositionOfCentralAtom(1) );
 }
 
 }

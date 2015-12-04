@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2011-2014 The plumed team
+   Copyright (c) 2011-2015 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed-code.org for more information.
@@ -74,6 +74,8 @@ public:
 /// version of distance which also returns the number
 /// of attempted shifts
   Vector distance(const Vector&,const Vector&,int*nshifts)const;
+/// Apply PBC to a set of positions or distance vectors
+  void apply(std::vector<Vector>&dlist, unsigned max_index=0) const;
 /// Set the lattice vectors.
 /// b[i][j] is the j-th component of the i-th vector
   void setBox(const Tensor&b);
@@ -93,11 +95,18 @@ public:
 /// Full search (for testing).
 /// Perform a full search on vector
   void fullSearch(Vector&)const;
+/// Returns true if box is set and non zero
+  bool isSet()const;
 };
 
 inline
 Vector Pbc::distance(const Vector& v1,const Vector& v2)const{
   return distance(v1,v2,NULL);
+}
+
+inline
+bool Pbc::isSet()const{
+  return type!=unset;
 }
 
 }

@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2013,2014 The plumed team
+   Copyright (c) 2013-2015 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed-code.org for more information.
@@ -135,7 +135,7 @@ class CS2Backbone : public Colvar {
   Coor<double> coor; 
   Coor<double> csforces;
 public:
-  CS2Backbone(const ActionOptions&);
+  explicit CS2Backbone(const ActionOptions&);
   ~CS2Backbone();
   static void registerKeywords( Keywords& keys );
   virtual void calculate();
@@ -192,11 +192,13 @@ PLUMED_COLVAR_INIT(ao)
 
   ensemble=false;
   parseFlag("ENSEMBLE",ensemble);
-  if(ensemble&&comm.Get_rank()==0) {
-    if(multi_sim_comm.Get_size()<2) error("You CANNOT run Replica-Averaged simulations without running multiple replicas!\n");
-    else ens_dim=multi_sim_comm.Get_size(); 
-  } else ens_dim=1; 
-  if(ensemble) comm.Sum(&ens_dim, 1);
+  if(ensemble){
+    if(comm.Get_rank()==0) { 
+      if(multi_sim_comm.Get_size()<2) error("You CANNOT run Replica-Averaged simulations without running multiple replicas!\n");
+      ens_dim=multi_sim_comm.Get_size();
+    } else ens_dim=0;
+    comm.Sum(&ens_dim, 1);
+  } else ens_dim=1;
 
   stringadb  = stringa_data + string("/camshift.db");
   stringamdb = stringa_data + string("/") + stringa_forcefield;
@@ -356,7 +358,7 @@ void CS2Backbone::calculate()
   if(printout) {
     char tmp1[21]; sprintf(tmp1, "%ld", getStep()); 
     string csfile = string("cs-")+getLabel()+"-"+tmp1+string(".dat");;
-    cam_list[0].printout_chemical_shifts(csfile.c_str());
+    cam_list[0].printout_chemical_shifts(csfile.c_str(), sh);
   }
 
   double fact=1.0;

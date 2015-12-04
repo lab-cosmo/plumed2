@@ -2,6 +2,11 @@
 # include the machine dependent configuration
 -include ../../Makefile.conf
 
+# openmp flags should not be used here
+ifdef CXXFLAGS_NOOPENMP
+  CXXFLAGS := $(CXXFLAGS_NOOPENMP)
+endif
+
 # if machine dependent configuration has been found:
 ifdef GCCDEP
 
@@ -28,8 +33,6 @@ all: $(OBJ_WRAPPER) $(OBJ_DYNAMIC_WRAPPER)
 
 obj: all
 
-links:
-	@echo Nothing to do in $(CURDIR)
 
 # there is a single C file here, and this is its dependency:
 Plumed.o: Plumed.c Plumed.h
@@ -48,10 +51,12 @@ endif
 
 # this target is available anyway
 
-.PHONY: clean
+.PHONY: clean links
 clean:
 	rm -fr deps 
 	rm -fr $(CLEANLIST)
+links:
+	@echo Nothing to do in $(CURDIR)
 
 # generic makefile rules
 include ../maketools/make.rules

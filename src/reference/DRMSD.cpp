@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2013,2014 The plumed team
+   Copyright (c) 2013-2015 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed-code.org for more information.
@@ -33,7 +33,7 @@ SingleDomainRMSD( ro ),
 bounds_were_set(false),
 nopbc(true),
 lower(0),
-upper(0)
+upper(std::numeric_limits<double>::max( ))
 {
 }
 
@@ -46,8 +46,8 @@ void DRMSD::read( const PDB& pdb ){
   readAtomsFromPDB( pdb );
 
   parseFlag("NOPBC",nopbc);  
-  if( !parse("LOWER_CUTOFF",lower,true) ) lower=0.0; 
-  if( !parse("UPPER_CUTTOFF",upper,true) ) upper=std::numeric_limits<double>::max( );
+  parse("LOWER_CUTOFF",lower,true);
+  parse("UPPER_CUTOFF",upper,true);
   setBoundsOnDistances( !nopbc, lower, upper );
   setup_targets();
 }
@@ -69,14 +69,14 @@ void DRMSD::setup_targets(){
           }
        }
   }
-  if( targets.size()==0 ) error("drmsd will compare no distances - check upper and lower bounds are sensible");  
+  if( targets.empty() ) error("drmsd will compare no distances - check upper and lower bounds are sensible");  
 }
 
-double DRMSD::calc( const std::vector<Vector>& pos, const Pbc& pbc, const bool& squared ){
-  plumed_dbg_assert( targets.size()>0 );
+double DRMSD::calc( const std::vector<Vector>& pos, const Pbc& pbc, ReferenceValuePack& myder, const bool& squared ) const {
+  plumed_dbg_assert(!targets.empty());
 
   Vector distance; 
-  double drmsd=0.; 
+  myder.clear(); double drmsd=0.; 
   for(std::map< std::pair <unsigned,unsigned> , double>::const_iterator it=targets.begin();it!=targets.end();++it){
       
       unsigned i=getAtomIndex( it->first.first );
@@ -89,9 +89,9 @@ double DRMSD::calc( const std::vector<Vector>& pos, const Pbc& pbc, const bool& 
       double diff = len - it->second;
 
       drmsd += diff * diff;
-      addAtomicDerivatives( i, -( diff / len ) * distance );
-      addAtomicDerivatives( j, ( diff / len ) * distance );
-      addBoxDerivatives( -( diff / len ) * Tensor(distance,distance) );
+      myder.addAtomDerivatives( i, -( diff / len ) * distance );
+      myder.addAtomDerivatives( j, ( diff / len ) * distance );
+      myder.addBoxDerivatives( -( diff / len ) * Tensor(distance,distance) );
   }
 
   double npairs = static_cast<double>(targets.size());
@@ -105,8 +105,9 @@ double DRMSD::calc( const std::vector<Vector>& pos, const Pbc& pbc, const bool& 
      idrmsd = 1.0/( drmsd * npairs );
   }
 
-  virial *= idrmsd; 
-  for(unsigned i=0;i<getNumberOfAtoms();++i){atom_ders[i] *= idrmsd;}
+  myder.scaleAllDerivatives( idrmsd );
+  // virial *= idrmsd; 
+  // for(unsigned i=0;i<getNumberOfAtoms();++i){atom_ders[i] *= idrmsd;}
 
   return drmsd;
 }

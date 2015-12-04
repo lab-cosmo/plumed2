@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2012-2014 The plumed team
+   Copyright (c) 2012-2015 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed-code.org for more information.
@@ -98,7 +98,7 @@ KernelFunctions::KernelFunctions( const std::string& input, const bool& normed )
   bool founds = Tools::parseVector(data,"SIGMA",sig);
   if(!foundc) plumed_merror("failed to find sigma keyword in definition of kernel");
 
-  bool multi; Tools::parseFlag(data,"MULTIVARIATE",multi);
+  bool multi=false; Tools::parseFlag(data,"MULTIVARIATE",multi);
   if( center.size()==1 && multi ) plumed_merror("one dimensional kernel cannot be multivariate");
   if( center.size()==1 && sig.size()!=1 ) plumed_merror("size mismatch between center size and sigma size");
   if( multi && center.size()>1 && sig.size()!=0.5*center.size()*(center.size()-1) ) plumed_merror("size mismatch between center size and sigma size");
@@ -119,8 +119,8 @@ void KernelFunctions::setData( const std::vector<double>& at, const std::vector<
 
   center.resize( at.size() ); for(unsigned i=0;i<at.size();++i) center[i]=at[i];
   width.resize( sig.size() ); for(unsigned i=0;i<sig.size();++i) width[i]=sig[i];
-  if (multivariate==true)diagonal=false;
-  if (multivariate==false || at.size()==1 )diagonal=true;
+  diagonal=false;
+  if (multivariate==false ) diagonal=true;
 
   // Setup the kernel type
   if(type=="GAUSSIAN" || type=="gaussian"){
@@ -132,11 +132,9 @@ void KernelFunctions::setData( const std::vector<double>& at, const std::vector<
   } else {
       plumed_merror(type+" is an invalid kernel type\n");
   }
-  
 
   if( norm ){
-    double det;
-    unsigned ncv=ndim(); 
+    double det; unsigned ncv=ndim(); 
     if(diagonal){
        det=1; for(unsigned i=0;i<width.size();++i) det*=width[i];
     } else {
@@ -147,7 +145,6 @@ void KernelFunctions::setData( const std::vector<double>& at, const std::vector<
     }
     double volume;
     if( ktype==gaussian ){
-       for(unsigned i=0;i<width.size();++i) det*=width[i];
        volume=pow( 2*pi, 0.5*ncv ) * pow( det, 0.5 );
     } else if( ktype==uniform || ktype==triangular ){
        if( ncv%2==1 ){
@@ -223,7 +220,7 @@ double KernelFunctions::evaluate( const std::vector<Value*>& pos, std::vector<do
   double r2=0;
   if(diagonal){ 
      for(unsigned i=0;i<ndim();++i){
-         derivatives[i]=-pos[i]->difference( center[i] ) / width[i]; 
+         derivatives[i]=-pos[i]->difference( center[i] ) / width[i];
          r2+=derivatives[i]*derivatives[i];
          derivatives[i] /= width[i];
      }
@@ -231,10 +228,10 @@ double KernelFunctions::evaluate( const std::vector<Value*>& pos, std::vector<do
      Matrix<double> mymatrix( getMatrix() ); 
      for(unsigned i=0;i<mymatrix.nrows();++i){
         double dp_i, dp_j; derivatives[i]=0;
-        dp_i=pos[i]->difference( center[i] ); 
+        dp_i=-pos[i]->difference( center[i] ); 
         for(unsigned j=0;j<mymatrix.ncols();++j){
           if(i==j) dp_j=dp_i;
-          else dp_j=pos[j]->difference( center[j] );
+          else dp_j=-pos[j]->difference( center[j] );
 
           derivatives[i]+=mymatrix(i,j)*dp_j;
           r2+=dp_i*dp_j*mymatrix(i,j);

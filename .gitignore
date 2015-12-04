@@ -19,4 +19,4 @@ makefile.dep
 /codes
 /config.*
 /autom4*
-
+/stamp-h

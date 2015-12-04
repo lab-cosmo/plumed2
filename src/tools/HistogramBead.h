@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2012-2014 The plumed team
+   Copyright (c) 2012-2015 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed-code.org for more information.
@@ -44,26 +44,29 @@ private:
 	double lowb;
 	double highb;
 	double width;
+        double cutoff;
         enum {gaussian,triangular} type;
         enum {unset,periodic,notperiodic} periodicity;
         double min, max, max_minus_min, inv_max_minus_min;
         double difference( const double& d1, const double& d2 ) const ;
 public:
         static void registerKeywords( Keywords& keys );
-        static void generateBins( const std::string& params, const std::string& dd, std::vector<std::string>& bins );  
+        static void generateBins( const std::string& params, std::vector<std::string>& bins );  
 	HistogramBead();
         std::string description() const ;
         bool hasBeenSet() const;
         void isNotPeriodic();
         void isPeriodic( const double& mlow, const double& mhigh );
         void setKernelType( const std::string& ktype );
-        void set(const std::string& params, const std::string& dd, std::string& errormsg);
+        void set(const std::string& params, std::string& errormsg);
 	void set(double l, double h, double w);
 	double calculate(double x, double&df) const;
+        double calculateWithCutoff( double x, double& df ) const; 
         double lboundDerivative( const double& x ) const;
         double uboundDerivative( const double& x ) const;
 	double getlowb() const ;
 	double getbigb() const ;
+        double getCutoff() const ;
 };	
 
 inline
@@ -89,6 +92,9 @@ double HistogramBead::getlowb() const { return lowb; }
 	
 inline
 double HistogramBead::getbigb() const { return highb; }
+
+inline
+double HistogramBead::getCutoff() const { return cutoff*width; }
 
 inline
 double HistogramBead::difference( const double& d1, const double& d2 ) const {

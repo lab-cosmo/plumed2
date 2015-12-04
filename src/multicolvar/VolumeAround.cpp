@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2012-2014 The plumed team
+   Copyright (c) 2012-2015 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed-code.org for more information.
@@ -58,7 +58,7 @@ that have x (in fractional coordinates) within 2.0 nm of the com of mass c1. The
 \verbatim
 COM ATOMS=1-100 LABEL=c1
 COORDINATIONNUMBER SPECIES=1-100 R_0=1.0 LABEL=c
-AROUND ARG=c ORIGIN=c1 XLOWER=-2.0 XUPPER=2.0 SIGMA=0.1 MEAN LABEL=s
+AROUND DATA=c ORIGIN=c1 XLOWER=-2.0 XUPPER=2.0 SIGMA=0.1 MEAN LABEL=s
 \endverbatim
 
 */
@@ -76,9 +76,9 @@ private:
   double zlow, zhigh;
 public:
   static void registerKeywords( Keywords& keys );
-  VolumeAround(const ActionOptions& ao);
+  explicit VolumeAround(const ActionOptions& ao);
   void setupRegions();
-  double calculateNumberInside( const Vector& cpos, HistogramBead& bead, Vector& derivatives );
+  double calculateNumberInside( const Vector& cpos, Vector& derivatives, Tensor& vir, std::vector<Vector>& refders ) const ;
 }; 
 
 PLUMED_REGISTER_ACTION(VolumeAround,"AROUND")
@@ -116,10 +116,12 @@ ActionVolume(ao)
 
 void VolumeAround::setupRegions(){ }
 
-double VolumeAround::calculateNumberInside( const Vector& cpos, HistogramBead& bead, Vector& derivatives ){
+double VolumeAround::calculateNumberInside( const Vector& cpos, Vector& derivatives, Tensor& vir, std::vector<Vector>& refders ) const {
+  // Setup the histogram bead
+  HistogramBead bead; bead.isNotPeriodic(); bead.setKernelType( getKernelType() );
+
   // Calculate position of atom wrt to origin
   Vector fpos=pbcDistance( getPosition(0), cpos );
-
   double xcontr, ycontr, zcontr, xder, yder, zder; 
   if( dox ){
      bead.set( xlow, xhigh, getSigma() );
@@ -143,9 +145,9 @@ double VolumeAround::calculateNumberInside( const Vector& cpos, HistogramBead& b
   derivatives[1]=xcontr*yder*zcontr; 
   derivatives[2]=xcontr*ycontr*zder;
   // Add derivatives wrt to position of origin atom
-  addReferenceAtomDerivatives( 0, -derivatives );
+  refders[0] = -derivatives;
   // Add virial contribution
-  addBoxDerivatives( -Tensor(fpos,derivatives) );
+  vir -= Tensor(fpos,derivatives);
   return xcontr*ycontr*zcontr;
 }
 

@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2011-2014 The plumed team
+   Copyright (c) 2011-2015 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed-code.org for more information.
@@ -110,8 +110,9 @@ class MovingRestraint : public Bias{
   std::vector<double> oldf;
   std::vector<string> verse;
   std::vector<double> work;
+  double tot_work;
 public:
-  MovingRestraint(const ActionOptions&);
+  explicit MovingRestraint(const ActionOptions&);
   void calculate();
   static void registerKeywords( Keywords& keys );
 };
@@ -136,6 +137,7 @@ void MovingRestraint::registerKeywords( Keywords& keys ){
   keys.reset_style("KAPPA","compulsory");
   componentsAreNotOptional(keys);
   keys.addOutputComponent("bias","default","the instantaneous value of the bias potential");
+  keys.addOutputComponent("work","default","the total work performed changing this restraint");
   keys.addOutputComponent("force2","default","the instantaneous value of the squared force due to this bias potential");
   keys.addOutputComponent("_cntr","default","one or multiple instances of this quantity will be refereceable elsewhere in the input file. "
                                             "these quantities will named with  the arguments of the bias followed by "
@@ -200,6 +202,8 @@ verse(getNumberOfArguments())
         addComponent(comp); componentIsNotPeriodic(comp);
         work.push_back(0.); // initialize the work value 
   }
+  addComponent("work"); componentIsNotPeriodic("work");
+  tot_work=0.0;
 
   log<<"  Bibliography ";
   log<<cite("Grubmuller, Heymann, and Tavan, Science 271, 997 (1996)")<<"\n";
@@ -231,6 +235,7 @@ void MovingRestraint::calculate(){
     for(unsigned j=0;j<narg;j++) kk[j]=(c1*kappa[i-1][j]+c2*kappa[i][j]);
     for(unsigned j=0;j<narg;j++) aa[j]=(c1*at[i-1][j]+c2*at[i][j]);
   }
+  tot_work=0.0;
   for(unsigned i=0;i<narg;++i){
     const double cv=difference(i,aa[i],getArgument(i)); // this gives: getArgument(i) - aa[i]
     getPntrToComponent(getPntrToArgument(i)->getName()+"_cntr")->set(aa[i]); 
@@ -243,10 +248,12 @@ void MovingRestraint::calculate(){
     if(oldaa.size()==aa.size() && oldf.size()==f.size()) work[i]+=0.5*(oldf[i]+f[i])*(aa[i]-oldaa[i]) + 0.5*( dpotdk[i]+olddpotdk[i] )*(kk[i]-oldk[i]);
     getPntrToComponent(getPntrToArgument(i)->getName()+"_work")->set(work[i]); 
     getPntrToComponent(getPntrToArgument(i)->getName()+"_kappa")->set(kk[i]); 
+    tot_work+=work[i];
     ene+=0.5*k*cv*cv;
     setOutputForce(i,f[i]);
     totf2+=f[i]*f[i];
   };
+  getPntrToComponent("work")->set(tot_work);
   oldf=f;
   oldaa=aa;
   oldk=kk;

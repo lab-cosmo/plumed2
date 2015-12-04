@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2011-2014 The plumed team
+   Copyright (c) 2011-2015 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed-code.org for more information.
@@ -37,6 +37,12 @@ specifying how to convert from the plumed default unit into that new unit or by 
 the shortcuts described below.  This directive MUST appear at the BEGINNING of the 
 plumed.dat file.  The same units must be used througout the plumed.dat file.
 
+Notice that all input/output will then be made using the specified units.
+That is: all the input parameters, all the output files, etc. The only
+exceptions are file formats for which there is a specific convention concerning
+the units. For example, trajectories written in .gro format (with \ref DUMPATOMS)
+are going to be always in nm.
+
 \par Examples
 \verbatim
 # this is using nm - kj/mol - fs
@@ -57,7 +63,7 @@ class Units :
 {
 public:
   static void registerKeywords( Keywords& keys );
-  Units(const ActionOptions&ao);
+  explicit Units(const ActionOptions&ao);
 };
 
 PLUMED_REGISTER_ACTION(Units,"UNITS")

@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2014 The plumed team
+   Copyright (c) 2014,2015 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed-code.org for more information.
@@ -32,6 +32,7 @@
 #include "core/ActionSet.h"
 #include "MultiColvarBase.h"
 #include "vesselbase/ActionWithInputVessel.h"
+#include "vesselbase/StoreDataVessel.h"
 
 using namespace std;
 
@@ -44,7 +45,19 @@ namespace multicolvar {
 Dump atom positions and multicolvar on a file.
 
 \par Examples
+In this examples we calculate the distances between the  atoms of the first and the second 
+group and we write them in the file MULTICOLVAR.xyz. For each couple it writes the 
+coordinates of their geometric center and their distance.
 
+\verbatim
+pos:   GROUP ATOMS=220,221,235,236,247,248,438,439,450,451,534,535
+neg:   GROUP ATOMS=65,68,138,182,185,267,270,291,313,316,489,583,621,711
+DISTANCES GROUPA=pos GROUPB=neg LABEL=slt
+
+DUMPMULTICOLVAR DATA=slt FILE=MULTICOLVAR.xyz
+\endverbatim
+
+(see also \ref DISTANCES)
 
 */
 //+ENDPLUMEDOC
@@ -58,7 +71,7 @@ class DumpMultiColvar:
   MultiColvarBase* mycolv; 
   std::string fmt_xyz;
 public:
-  DumpMultiColvar(const ActionOptions&);
+  explicit DumpMultiColvar(const ActionOptions&);
   ~DumpMultiColvar();
   static void registerKeywords( Keywords& keys );
   void calculate(){}
@@ -121,7 +134,7 @@ DumpMultiColvar::DumpMultiColvar(const ActionOptions&ao):
 }
 
 void DumpMultiColvar::update(){
-  of.printf("%d\n",mycolv->getFullNumberOfTasks());
+  of.printf("%u\n",mycolv->getFullNumberOfTasks());
   const Tensor & t(mycolv->getPbc().getBox());
   if(mycolv->getPbc().isOrthorombic()){
     of.printf((" "+fmt_xyz+" "+fmt_xyz+" "+fmt_xyz+"\n").c_str(),lenunit*t(0,0),lenunit*t(1,1),lenunit*t(2,2));
@@ -132,15 +145,21 @@ void DumpMultiColvar::update(){
                  lenunit*t(2,0),lenunit*t(2,1),lenunit*t(2,2)
            );
   }
-  std::vector<double> cvals( mycolv->getNumberOfQuantities()-4 );
+  vesselbase::StoreDataVessel* stash=dynamic_cast<vesselbase::StoreDataVessel*>( getPntrToArgument() );
+  plumed_dbg_assert( stash );
+  std::vector<double> cvals( mycolv->getNumberOfQuantities() );
   for(unsigned i=0;i<mycolv->getFullNumberOfTasks();++i){
     const char* defname="X";
     const char* name=defname;
 
-    Vector apos = mycolv->getCentralAtomPosition(i);
+    Vector apos = mycolv->getCentralAtomPos( mycolv->getTaskCode(i) );
     of.printf(("%s "+fmt_xyz+" "+fmt_xyz+" "+fmt_xyz).c_str(),name,lenunit*apos[0],lenunit*apos[1],lenunit*apos[2]);
-    mycolv->getValueForTask( i, cvals );
-    for(unsigned j=0;j<cvals.size();++j) of.printf((" "+fmt_xyz).c_str(),cvals[j]);
+    stash->retrieveValue( i, true, cvals );
+    if( mycolv->weightWithDerivatives() ){
+       for(unsigned j=0;j<cvals.size();++j) of.printf((" "+fmt_xyz).c_str(),cvals[j]);
+    } else {
+       for(unsigned j=1;j<cvals.size();++j) of.printf((" "+fmt_xyz).c_str(),cvals[j]);
+    }  
     of.printf("\n");
   }
 }

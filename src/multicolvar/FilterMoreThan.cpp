@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2013 The plumed team
+   Copyright (c) 2014,2015 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed-code.org for more information.
@@ -41,8 +41,8 @@ private:
   SwitchingFunction sf;
 public:
   static void registerKeywords( Keywords& keys );
-  FilterMore(const ActionOptions& ao);
-  double applyFilter( const double& val, double& df );
+  explicit FilterMore(const ActionOptions& ao);
+  double applyFilter( const double& val, double& df ) const ;
 }; 
 
 PLUMED_REGISTER_ACTION(FilterMore,"MFILTER_MORE")
@@ -50,7 +50,7 @@ PLUMED_REGISTER_ACTION(FilterMore,"MFILTER_MORE")
 void FilterMore::registerKeywords( Keywords& keys ){
   MultiColvarFilter::registerKeywords( keys );
   keys.add("compulsory","NN","6","The n parameter of the switching function ");
-  keys.add("compulsory","MM","12","The m parameter of the switching function ");
+  keys.add("compulsory","MM","0","The m parameter of the switching function; 0 implies 2*NN");
   keys.add("compulsory","D_0","0.0","The d_0 parameter of the switching function");
   keys.add("compulsory","R_0","The r_0 parameter of the switching function");
   keys.add("optional","SWITCH","This keyword is used if you want to employ an alternative to the continuous swiching function defined above. "
@@ -79,7 +79,7 @@ MultiColvarFilter(ao)
   checkRead();  
 }
 
-double FilterMore::applyFilter( const double& val, double& df ){
+double FilterMore::applyFilter( const double& val, double& df ) const {
   double f = 1.0 - sf.calculate( val, df ); df*=-val;
   return f;
 }

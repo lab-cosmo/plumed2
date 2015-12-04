@@ -2,24 +2,31 @@
 
 @page CHANGES-UNRELEASED Unreleased changes
 
-Include all fixes in branch 2.1 indicated in \ref CHANGES-2-1 .
+This page contains changes that will end up in 2.3
 
-Changes from version 2.1 which are relevant for users:
+Changes from version 2.2 which are relevant for users:
 - Changes leading to incompatible behavior:
-  - Labels of quantities calculates by \ref SPRINT have changed from <i>label</i>.coord_<i>num</i> to <i>label</i>.coord-<i>num</i>
-- Link cells are now used in all multicolvars that involve \ref SwitchingFunctions.  The link cell cutoff is
-  set equal to 2.*\f$d_{\textrm{max}}\f$.  Where \f$d_{\textrm{max}}\f$ is the (user-specified) point at which
-  the switching function goes to zero. Users should always set this parameter when using a switching function
-  in order to achieve optimal performance.
-- New actions
-  - \ref DFSCLUSTERING calculate the size of clusters 
-  - \ref DUMPMULTICOLVAR print out a multicolvar
-  - \ref MFILTER_LESS filter multicolvar by the value of the colvar
-  - \ref MFILTER_MORE 
-  - \ref MFILTER_BETWEEN
-  - \ref GRADIENT can be used to calculate the gradient of a quantity.  Used to drive nucleation
-  - \ref CAVITY
-- VMEAN and VSUM allow one to calculate the sum of a set of vectors calculated by VectorMultiColvar.  Note these
-  can also be used in tandem with \ref AROUND or \ref MFILTER_MORE to calculate the average vector within a particular
-  part of the cell or the average vector amonst those that have a magnitude greater than some tolerance
+  - \ref COMMITTOR can now be used to define multiple basins, but the syntax has been changed
+  - Syntax for \ref SPRINT, \ref DFSCLUSTERING, \ref DFSCLUSTERDIAMETER, \ref DFSMAXCLUSTER \ref DFSNUMEROFCLUSTERS has changed.
+    We have separated the Actions that calculate the contact matrix from these actions.  These actions thus now take a contact
+    matrix as input.  This means that we these actions can be used with contact matrices that measures whether or not a pair of atoms
+    are hydrogen bonded.  For more details on this see \ref contactmatrix 
+- In \ref driver masses and charges are set by default to NaN.
+  This makes it less likely to do mistakes trying to compute centers of mass or electrostatic-dependent variables
+  when masses or charges were not set. To compute these variables from the driver you are now forced to use
+  `--pdb` or `--mc`.
+- New actions:
+  - \ref FIXEDATOM
+  - \ref HBOND_MATRIX
+  - \ref DFSOUTPUT
+  - \ref ROWSUMS
+  - \ref COLUMNSUMS
+- New features for existing actions:
+  - The SPECIES and SPECIESA keyword in MultiColvars can now take a multicolvar as input.  This allows one
+    to calculate quantities such as the Q4 parameters for those atoms that have a coordination number greater
+    than x.
+  - In rational switching functions, by default MM is twice NN. This is valid both in \ref switchingfunction with expanded
+    syntax and when specifying MM on e.g. \ref COORDINATION
+  - Added MATHEVAL type in \ref switchingfunction
+
 */

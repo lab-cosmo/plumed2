@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2012-2014 The plumed team
+   Copyright (c) 2012-2015 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed-code.org for more information.
@@ -95,6 +95,7 @@ init(false),
 lowb(0.0),
 highb(0.0),
 width(0.0),
+cutoff(std::numeric_limits<double>::max()),
 type(gaussian),
 periodicity(unset),
 min(0.0),
@@ -110,56 +111,58 @@ std::string HistogramBead::description() const {
   return ostr.str();
 }
 
-void HistogramBead::generateBins( const std::string& params, const std::string& dd, std::vector<std::string>& bins ){
-  if( dd.size()!=0 && params.find(dd)==std::string::npos) return;
+void HistogramBead::generateBins( const std::string& params, std::vector<std::string>& bins ){
   std::vector<std::string> data=Tools::getWords(params);
   plumed_massert(data.size()>=1,"There is no input for this keyword");
 
   std::string name=data[0];
 
   unsigned nbins; std::vector<double> range(2); std::string smear;
-  bool found_nb=Tools::parse(data,dd+"NBINS",nbins);
+  bool found_nb=Tools::parse(data,"NBINS",nbins);
   plumed_massert(found_nb,"Number of bins in histogram not found");
-  bool found_r=Tools::parse(data,dd+"LOWER",range[0]);
+  bool found_r=Tools::parse(data,"LOWER",range[0]);
   plumed_massert(found_r,"Lower bound for histogram not specified");
-  found_r=Tools::parse(data,dd+"UPPER",range[1]);
+  found_r=Tools::parse(data,"UPPER",range[1]);
   plumed_massert(found_r,"Upper bound for histogram not specified");
   plumed_massert(range[0]<range[1],"Range specification is dubious"); 
-  bool found_b=Tools::parse(data,dd+"SMEAR",smear);
+  bool found_b=Tools::parse(data,"SMEAR",smear);
   if(!found_b){ Tools::convert(0.5,smear); }  
 
   std::string lb,ub; double delr = ( range[1]-range[0] ) / static_cast<double>( nbins );
   for(unsigned i=0;i<nbins;++i){
      Tools::convert( range[0]+i*delr, lb );
      Tools::convert( range[0]+(i+1)*delr, ub );
-     bins.push_back( name + " " +  dd + "LOWER=" + lb + " " + dd + "UPPER=" + ub + " " + dd + "SMEAR=" + smear );
+     bins.push_back( name + " " +  "LOWER=" + lb + " " + "UPPER=" + ub + " " + "SMEAR=" + smear );
   }
   plumed_assert(bins.size()==nbins);
 }
 
-void HistogramBead::set( const std::string& params, const std::string& dd, std::string& errormsg ){
-  if( dd.size()!=0 && params.find(dd)==std::string::npos) return;
+void HistogramBead::set( const std::string& params, std::string& errormsg ){
   std::vector<std::string> data=Tools::getWords(params);
   if(data.size()<1) errormsg="No input has been specified";
 
-  std::string name=data[0];
-  if(name=="GAUSSIAN") type=gaussian;
-  else if(name=="TRIANGULAR") type=triangular;
+  std::string name=data[0]; const double DP2CUTOFF=6.25;
+  if(name=="GAUSSIAN"){ type=gaussian; cutoff=sqrt(2.0*DP2CUTOFF); }
+  else if(name=="TRIANGULAR"){ type=triangular; cutoff=1.; }
   else plumed_merror("cannot understand kernel type " + name ); 
 
   double smear;
-  bool found_r=Tools::parse(data,dd+"LOWER",lowb);
+  bool found_r=Tools::parse(data,"LOWER",lowb);
   if( !found_r ) errormsg="Lower bound has not been specified use LOWER";
-  found_r=Tools::parse(data,dd+"UPPER",highb);
+  found_r=Tools::parse(data,"UPPER",highb);
   if( !found_r ) errormsg="Upper bound has not been specified use UPPER"; 
   if( lowb>=highb ) errormsg="Lower bound is higher than upper bound"; 
   
-  smear=0.5; Tools::parse(data,dd+"SMEAR",smear);
+  smear=0.5; Tools::parse(data,"SMEAR",smear);
   width=smear*(highb-lowb); init=true;
 }
 
 void HistogramBead::set( double l, double h, double w){
-  init=true; lowb=l; highb=h; width=w;  
+  init=true; lowb=l; highb=h; width=w; 
+  const double DP2CUTOFF=6.25;
+  if( type==gaussian ) cutoff=sqrt(2.0*DP2CUTOFF);
+  else if( type==triangular ) cutoff=1.;
+  else plumed_error();
 } 
 
 void HistogramBead::setKernelType( const std::string& ktype ){
@@ -180,8 +183,8 @@ double HistogramBead::calculate( double x, double& df ) const {
      lowB = ( difference( x, lowb ) / width );
      upperB = ( difference( x, highb ) / width );
      df=0;
-     if( fabs(lowB)<1. ) df = 1 - fabs(lowB) / width;
-     if( fabs(upperB)<1. ) df -= fabs(upperB) / width;
+     if( fabs(lowB)<1. ) df = (1 - fabs(lowB)) / width;
+     if( fabs(upperB)<1. ) df -= (1 - fabs(upperB)) / width;
      if (upperB<=-1. || lowB >=1.){
         f=0.;
      } else { 
@@ -193,6 +196,35 @@ double HistogramBead::calculate( double x, double& df ) const {
   } else {
      plumed_merror("function type does not exist");
   } 
+  return f;
+}
+
+double HistogramBead::calculateWithCutoff( double x, double& df ) const {
+  plumed_dbg_assert(init && periodicity!=unset );
+
+  double lowB, upperB, f;
+  lowB = difference( x, lowb ) / width ; upperB = difference( x, highb ) / width;
+  if( upperB<=-cutoff || lowB>=cutoff ){ df=0; return 0; }
+
+  if( type==gaussian ){
+     lowB /= sqrt(2.0); upperB /= sqrt(2.0); 
+     df = ( exp( -lowB*lowB ) - exp( -upperB*upperB ) ) / ( sqrt(2*pi)*width );
+     f = 0.5*( erf( upperB ) - erf( lowB ) );
+  } else if( type==triangular ){
+     df=0;
+     if( fabs(lowB)<1. ) df = (1 - fabs(lowB)) / width;
+     if( fabs(upperB)<1. ) df -= (1 - fabs(upperB)) / width;
+     if (upperB<=-1. || lowB >=1.){
+        f=0.;
+     } else {
+       double ia, ib;
+       if( lowB>-1.0 ){ ia=lowB; }else{ ia=-1.0; }
+       if( upperB<1.0 ){ ib=upperB; } else{ ib=1.0; }
+       f = (ib*(2.-fabs(ib))-ia*(2.-fabs(ia)))*0.5;
+     }
+  } else {
+     plumed_merror("function type does not exist");
+  }
   return f;
 }
 
