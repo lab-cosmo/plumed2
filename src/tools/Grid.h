@@ -128,11 +128,9 @@ public:
  std::vector<std::string> getArgNames() const;
  
 /// methods to handle grid indices 
- //Ok, getting an often-called function to return an STL vector is CRAZYLY expensive.
- //Don't want to break things so I will overload and write sane replacements, to be slowly applied throughout. 
- void getIndices(index_t index, std::vector<unsigned>& rindex) const;   
- void getIndices(const std::vector<double> & x, std::vector<unsigned>& rindex) const;   
- std::vector<unsigned> getIndices(index_t index) const;   
+ void getIndices(index_t index, std::vector<unsigned>& rindex) const;
+ void getIndices(const std::vector<double> & x, std::vector<unsigned>& rindex) const;
+ std::vector<unsigned> getIndices(index_t index) const;
  std::vector<unsigned> getIndices(const std::vector<double> & x) const;
  index_t getIndex(const std::vector<unsigned> & indices) const;
  index_t getIndex(const std::vector<double> & x) const;

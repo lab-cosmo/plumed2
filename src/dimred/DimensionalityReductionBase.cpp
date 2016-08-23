@@ -64,6 +64,7 @@ void DimensionalityReductionBase::getDataPoint( const unsigned& idata, std::vect
 }
 
 void DimensionalityReductionBase::performAnalysis(){
+  log.printf("Generating projections required by action %s \n",getLabel().c_str() );
   // Resize the tempory array (this is used for out of sample)
   dtargets.resize( getNumberOfDataPoints() );
   // Resize the projections array
@@ -78,12 +79,13 @@ void DimensionalityReductionBase::performAnalysis(){
       }
   }
   // Calculate matrix of dissimilarities
-  Matrix<double> targets( getNumberOfDataPoints(), getNumberOfDataPoints() );
+  Matrix<double> targets( getNumberOfDataPoints(), getNumberOfDataPoints() ); targets=0;
   for(unsigned i=1;i<getNumberOfDataPoints();++i){
      for(unsigned j=0;j<i;++j) targets(i,j)=targets(j,i)=getDissimilarity( i, j );
   }
   // This calculates the projections of the points
   calculateProjections( targets, projections );
+  log.printf("Generated projections required by action %s \n",getLabel().c_str() );
 }
 
 double DimensionalityReductionBase::calculateStress( const std::vector<double>& p, std::vector<double>& d ){

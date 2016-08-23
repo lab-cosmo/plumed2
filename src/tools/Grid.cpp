@@ -205,7 +205,6 @@ vector<unsigned> Grid::getIndices(index_t index) const {
  return indices;
 }
 
-// saner replacement for the above
 void Grid::getIndices(index_t index, std::vector<unsigned>& indices) const{
  if (indices.size()!=dimension_) indices.resize(dimension_);
  index_t kk=index;
@@ -217,7 +216,7 @@ void Grid::getIndices(index_t index, std::vector<unsigned>& indices) const{
  if(dimension_>=2){
   indices[dimension_-1]=((kk-indices[dimension_-2])/nbin_[dimension_-2]);
  }
-}	
+}
 
 vector<unsigned> Grid::getIndices(const vector<double> & x) const {
  plumed_dbg_assert(x.size()==dimension_);
@@ -228,7 +227,6 @@ vector<unsigned> Grid::getIndices(const vector<double> & x) const {
  return indices;
 }
 
-// saner replacement for the above
 void Grid::getIndices(const vector<double> & x, std::vector<unsigned>& indices) const {
  plumed_dbg_assert(x.size()==dimension_);
  if (indices.size()!=dimension_) indices.resize(dimension_);
@@ -331,13 +329,12 @@ vector<Grid::index_t> Grid::getNeighbors
 void Grid::getSplineNeighbors(const vector<unsigned> & indices, vector<Grid::index_t>& neighbors, unsigned& nneighbors)const{
  plumed_dbg_assert(indices.size()==dimension_);
  unsigned nneigh=unsigned(pow(2.0,int(dimension_)));
- if (neighbors.size()!=nneigh) neighbors.resize(nneigh);
- 
- static vector<unsigned> nindices; if (nindices.size()!=dimension_) nindices.resize(dimension_); 
- unsigned inind; nneighbors = 0; 
+ if (neighbors.size()!=nneigh) neighbors.resize(nneigh); 
+
+ static vector<unsigned> nindices; if (nindices.size()!=dimension_) nindices.resize(dimension_);
+ unsigned inind; nneighbors = 0;
  for(unsigned int i=0;i<nneigh;++i){
-  unsigned tmp=i;
-  inind=0;
+  unsigned tmp=i; inind=0;
   for(unsigned int j=0;j<dimension_;++j){
    unsigned i0=tmp%2+indices[j];
    tmp/=2;
@@ -345,7 +342,7 @@ void Grid::getSplineNeighbors(const vector<unsigned> & indices, vector<Grid::ind
    if( pbc_[j] && i0==nbin_[j]) i0=0;
    nindices[inind++]=i0;
   }
-  if(inind==dimension_) neighbors[nneighbors++]=getIndex(nindices);
+  if(inind==dimension_) neighbors[nneighbors++]=getIndex(nindices); 
  }
 }
 
@@ -434,11 +431,11 @@ double Grid::getValueAndDerivatives
  
  if(dospline_){
   double X,X2,X3,value;
-  static std::vector<double> fd, C, D, dder; 
+  static std::vector<double> fd, C, D, dder;
   if (fd.size() != dimension_) fd.resize(dimension_);
   if (C.size() != dimension_) C.resize(dimension_);
   if (D.size() != dimension_) D.resize(dimension_);
-  if (dder.size() != dimension_) dder.resize(dimension_);  
+  if (dder.size() != dimension_) dder.resize(dimension_);
 // reset
   value=0.0;
   for(unsigned int i=0;i<dimension_;++i) der[i]=0.0;
@@ -448,7 +445,6 @@ double Grid::getValueAndDerivatives
   static vector<double> xfloor; if (xfloor.size()!=dimension_) xfloor.resize(dimension_);
   getPoint(indices, xfloor);
   static vector<index_t> neigh; unsigned nneigh; getSplineNeighbors(indices, neigh, nneigh);
-  
 
 // loop over neighbors
   static vector<unsigned> nindices;
