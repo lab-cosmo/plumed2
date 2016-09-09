@@ -53,7 +53,7 @@ clearstride(0)
       if( clearstride>0 ){
           if( clearstride%getStride()!=0 ) error("CLEAR parameter must be a multiple of STRIDE");
           log.printf("  clearing grid every %u steps \n",clearstride);
-      }
+      } else log.printf("  storing all the data on the grid, never clearing \n");
   }
   if( keywords.exists("LOGWEIGHTS") ){
       std::vector<std::string> wwstr; parseVector("LOGWEIGHTS",wwstr);
