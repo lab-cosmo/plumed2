@@ -72,12 +72,37 @@ myclass_func(pf)
 {
 }
 
+// GAT
 template <class FCLASS>
 void Brent1DRootSearch<FCLASS>::bracket( const double& a, const double& b, eng_pointer eng ){
    plumed_assert( a!=b ); ax=a; bx=b; fa=(myclass_func.*eng)(a); fb=(myclass_func.*eng)(b);
    if ((fa > 0.0 && fb > 0.0) || (fa < 0.0 && fb < 0.0)) plumed_merror("input points do not bracket root");
    bracketed=true;
 }
+
+// EB
+//template <class FCLASS>
+//void Brent1DRootSearch<FCLASS>::bracket( const double& a, const double& b, eng_pointer eng ){
+//   ax=a; bx=b; fa=(myclass_func.*eng)(a); fb=(myclass_func.*eng)(b);
+//   const unsigned NTRY=50; const double FACTOR=1.6;
+//   // Print out function values at bracketing points
+//   printf("FUNCTION VALUES AT POINTS (%f, %f) ---> %f %f \n",ax,bx,fa,fb);
+//   // Error if the interval is zero
+//   if ( ax == bx) plumed_merror("bad initial range for bracketing");
+//   // Try to bracket the root, by looking to a function's change of sign
+//   for (unsigned j=0; j<NTRY; j++) {
+//       //if (j==0) printf("first attempt to bracket the root");
+//       if ( fa*fb < 0.0) {
+//           bracketed=true;
+//           return;
+//       }
+//       if ( fabs(fa) < fabs(fb) )
+//           fa=(myclass_func.*eng)(ax += FACTOR*(ax-bx));
+//       else
+//           fb=(myclass_func.*eng)(bx += FACTOR*(bx-ax));
+//   }
+//   bracketed=false;
+//}
 
 template <class FCLASS>
 double Brent1DRootSearch<FCLASS>::search( eng_pointer eng ){
