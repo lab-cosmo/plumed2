@@ -115,11 +115,9 @@ in NMR driven Metadynamics \cite Granata:2013dk:
 \verbatim
 whole: GROUP ATOMS=2612-2514:-1,961-1:-1,2466-962:-1,2513-2467:-1
 WHOLEMOLECULES ENTITY0=whole
-cs: CS2BACKBONE ATOMS=1-2612 NRES=176 DATA=../data/ TEMPLATE=template.pdb NEIGH_FREQ=10
-score: STATS ARG=(cs\.hn_.*),(cs\.nh_.*),(cs\.ca_.*),(cs\.cb_.*),(cs\.co_.*),(cs\.ha_.*) PARARG=(cs\.exphn_.*),(cs\.expnh_.*),(cs\.expca_.*),(cs\.expcb.*),(cs\.expco_.*),(cs\.expha_.*) SQDEVSUM  
-metad: METAD ARG=score.sqdevsum ...
-PRINT ARG=(cs\.hn_.*),(cs\.nh_.*),(cs\.ca_.*),(cs\.cb_.*),(cs\.co_.*),(cs\.ha_.*) FILE=CS.dat STRIDE=100 
-PRINT ARG=score FILE=COLVAR STRIDE=100 
+cs: CS2BACKBONE ATOMS=1-2612 NRES=176 DATA=../data/ TEMPLATE=template.pdb CAMSHIFT NOPBC 
+metad: METAD ARG=cs HEIGHT=0.5 SIGMA=0.1 PACE=200 BIASFACTOR=10
+PRINT ARG=cs,metad.bias FILE=COLVAR STRIDE=100 
 \endverbatim
 
 In this second example the chemical shifts are used as replica-averaged restrained as in \cite Camilloni:2012je \cite Camilloni:2013hs. 
@@ -496,7 +494,7 @@ void CS2Backbone::registerKeywords( Keywords& keys ){
   keys.add("atoms","ATOMS","The atoms to be included in the calculation, e.g. the whole protein.");
   keys.add("compulsory","DATA","data/","The folder with the experimental chemical shifts.");
   keys.add("compulsory","TEMPLATE","template.pdb","A PDB file of the protein system to initialise ALMOST.");
-  keys.add("compulsory","NEIGH_FREQ","25","Period in step for neighbour list update.");
+  keys.add("compulsory","NEIGH_FREQ","20","Period in step for neighbour list update.");
   keys.add("compulsory","NRES","Number of residues, corresponding to the number of chemical shifts.");
   keys.addFlag("CAMSHIFT",false,"Set to TRUE if you to calculate a single CamShift score."); 
   keys.addFlag("NOEXP",false,"Set to TRUE if you don't want to have fixed components with the experimetnal values.");  
@@ -538,7 +536,7 @@ pbc(true)
   parse("TEMPLATE",stringa_template);
 
   box_count=0;
-  box_nupdate=25;
+  box_nupdate=20;
   parse("NEIGH_FREQ", box_nupdate);
 
   unsigned numResidues;
@@ -720,6 +718,8 @@ void CS2Backbone::read_cs(const string &file, const string &nucl){
   else if(nucl=="C") n=5;
   else return;
 
+  int oldseg = -1;
+  int oldp = -1;
   while(iter!=end){
     string tok;
     tok = *iter; ++iter;
@@ -728,10 +728,18 @@ void CS2Backbone::read_cs(const string &file, const string &nucl){
     p = p - 1;
     const unsigned seg = frag_segment(p);
     p = frag_relitive_index(p,seg);
+    if(oldp==-1) oldp=p;
+    if(oldseg==-1) oldseg=seg;
+    if(p<oldp&&seg==oldseg) {
+      string errmsg = "Error while reading " + file + "! The same residue number has been used twice!";
+      error(errmsg);
+    }
     tok = *iter; ++iter;
     double cs = atof(tok.c_str());
     if(atom[seg][p].pos[n]<=0) cs=0;
-    atom[seg][p].exp_cs[n] = cs; 
+    else atom[seg][p].exp_cs[n] = cs;
+    oldseg = seg;
+    oldp = p;
   }
   in.close();
 }
@@ -755,7 +763,6 @@ void CS2Backbone::calculate()
   camshift_sigma2[4] = 1.56; // CB
   camshift_sigma2[5] = 1.70; // CO
 
-  unsigned index=0;
   const unsigned chainsize = atom.size();
   const unsigned atleastned = 72+ringInfo.size()*6;
 
@@ -765,7 +772,7 @@ void CS2Backbone::calculate()
     const unsigned psize = atom[s].size();
     vector<Vector> omp_deriv;
     if(camshift) omp_deriv.resize(getNumberOfAtoms(), Vector(0,0,0));
-    #pragma omp for reduction(+:score) 
+    #pragma omp for reduction(+:score)
     // SKIP FIRST AND LAST RESIDUE OF EACH CHAIN
     for(unsigned a=1;a<psize-1;a++){
 
@@ -1079,8 +1086,12 @@ void CS2Backbone::calculate()
           if(!camshift) { 
             comp = atom[s][a].comp[at_kind];
             comp->set(cs);
-            for(unsigned i=0;i<list.size();i++) setAtomsDerivatives(comp,list[i],fact*ff[i]);
-            setBoxDerivativesNoPbc(comp);
+            Tensor virial;
+            for(unsigned i=0;i<list.size();i++) {
+                setAtomsDerivatives(comp,list[i],fact*ff[i]);
+                virial-=Tensor(getPosition(list[i]),fact*ff[i]);
+            }
+            setBoxDerivatives(comp,virial);
           } else {
             // but I would also divide for the weights derived with metainference
             comp = getPntrToValue();
@@ -1093,7 +1104,6 @@ void CS2Backbone::calculate()
     }
     #pragma omp critical
     if(camshift) for(int i=0;i<getPositions().size();i++) setAtomsDerivatives(i,omp_deriv[i]);
-    index += psize;
   }
 
   // in the case of camshift we calculate the virial at the end
@@ -1110,7 +1120,7 @@ void CS2Backbone::update_neighb(){
   const unsigned chainsize = atom.size();
   for(unsigned s=0;s<chainsize;s++){
     const unsigned psize = atom[s].size();
-    #pragma omp parallel for num_threads(OpenMP::getNumThreads())  
+    #pragma omp parallel for num_threads(OpenMP::getNumThreads())
     for(unsigned a=1;a<psize-1;a++){
       const unsigned boxsize = getNumberOfAtoms();
       atom[s][a].box_nb.clear();
