@@ -45,7 +45,7 @@ MEAN for \ref MFILTER_BETWEEN one is thus calculating:
 \mu = \frac{ \sum_i f_i s_i }{ \sum_i f_i}
 \f]
 
-In this action by contrast the colvar is being transformed by the \ref histogram bead.  If one thus calculates a MEAN for 
+In this action by contrast the colvar is being transformed by the \ref histogrambead.  If one thus calculates a MEAN for 
 thia action one computes:
 
 \f[
@@ -99,7 +99,7 @@ w_i = \int_a^b K\left( \frac{s - s_i}{w} \right)
 \f]
 
 where \f$a, b\f$ and \f$w\f$ are parameters.  If one calculates a function of the set of multicolvars
-these weights are included in the calculation.  As such if one calculates the MEAN, $f\mu\f$ of a filtered 
+these weights are included in the calculation.  As such if one calculates the MEAN, \f$\mu\f$ of a filtered 
 multicolvar what is computed is the following:
 
 \f[
