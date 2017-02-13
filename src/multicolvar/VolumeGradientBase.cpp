@@ -85,7 +85,7 @@ void VolumeGradientBase::setNumberInVolume( const unsigned& ivol, const unsigned
   } else if(ivol==0){
       double ww=outvals.get(0); outvals.setValue(ivol,ww*weight);
       if( derivativesAreRequired() ){
-         plumed_merror("This needs testing");
+         //plumed_merror("This needs testing");
          CatomPack catom( mcolv->getCentralAtomPack( 0, curr ) );
          for(unsigned i=0;i<catom.getNumberOfAtomsWithDerivatives();++i){
              unsigned jatom=3*catom.getIndex(i);
@@ -105,7 +105,7 @@ void VolumeGradientBase::setNumberInVolume( const unsigned& ivol, const unsigned
   } else {
       double ww=outvals.get(0); outvals.setValue(ivol,ww*weight);
       if( derivativesAreRequired() ){
-         plumed_merror("This needs testing");
+         //plumed_merror("This needs testing");
          CatomPack catom( mcolv->getCentralAtomPack( 0, curr ) ); 
          for(unsigned i=0;i<catom.getNumberOfAtomsWithDerivatives();++i){
              unsigned jatom=3*catom.getIndex(i);

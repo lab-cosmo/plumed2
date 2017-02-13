@@ -46,7 +46,7 @@ Y_k = \sum_{j=0}^{n-1} X_j e^{2\pi\, j k \sqrt{-1}/n}.
 
 This can be easily extended to more than one dimension. All the other details can be found at http://www.fftw.org/doc/What-FFTW-Really-Computes.html#What-FFTW-Really-Computes.
 
-The keyword "FOURIER_PARAMETERS" deserves just a note on the usage. This keyword specifies how the Fourier transform will be normalized. The keyword takes two numerical parameters (\f$a,\,b\f$) that define the normalization according to the following expression
+The keyword "FOURIER_PARAMS" deserves just a note on the usage. This keyword specifies how the Fourier transform will be normalized. The keyword takes two numerical parameters (\f$a,\,b\f$) that define the normalization according to the following expression
 
 \f[
 \frac{1}{n^{(1-a)/2}} \sum_{j=0}^{n-1} X_j e^{2\pi b\, j k \sqrt{-1}/n}
@@ -58,7 +58,7 @@ The default values of these parameters are: \f$a=1\f$ and \f$b=1\f$.
 The following example tells Plumed to compute the complex 2D 'backward' Discrete Fourier Transform by taking the data saved on a grid called 'density', and normalizing the output by \f$ \frac{1}{\sqrt{N_x\, N_y}}\f$, where \f$N_x\f$ and \f$N_y\f$ are the number of data on the grid (it can be the case that \f$N_x \neq N_y\f$):
 
 \verbatim
-FOURIER_TRANSFORM STRIDE=1 GRID=density FT_TYPE=complex FOURIER_PARAMETERS=0,-1 FILE=fourier.dat
+FOURIER_TRANSFORM STRIDE=1 GRID=density FT_TYPE=complex FOURIER_PARAMS" FILE=fourier.dat
 \endverbatim
 
 */
@@ -88,7 +88,7 @@ PLUMED_REGISTER_ACTION(FourierTransform,"FOURIER_TRANSFORM")
 void FourierTransform::registerKeywords( Keywords& keys ){
   ActionWithInputGrid::registerKeywords( keys ); keys.remove("BANDWIDTH"); keys.remove("KERNEL");
   keys.add("optional","FT_TYPE","choose what kind of data you want as output on the grid. Possible values are: ABS = compute the complex modulus of Fourier coefficients (DEFAULT); NORM = compute the norm (i.e. ABS^2) of Fourier coefficients; COMPLEX = store the FFTW complex output on the grid (as a vector).");
-  keys.add("compulsory","FOURIER_PARAMETERS","default","what kind of normalization is applied to the output and if the Fourier transform in FORWARD or BACKWARD. This keyword takes the form FOURIER_PARAMETERS=A,B, where A and B can be 0, 1 or -1. The default values are A=1 (no normalization at all) and B=1 (forward FFT). Other possible choices for A are: "
+  keys.add("compulsory","FOURIER_PARAMS","default","what kind of normalization is applied to the output and if the Fourier transform in FORWARD or BACKWARD. This keyword takes the form FOURIER_PARAMS where A and B can be 0, 1 or -1. The default values are A=1 (no normalization at all) and B=1 (forward FFT). Other possible choices for A are: "
                                                        "A=-1: normalize by the number of data, "
                                                        "A=0: normalize by the square root of the number of data (one forward and followed by backward FFT recover the original data). ");
 }
@@ -120,16 +120,16 @@ fourier_params(2)
   } else error("keyword FT_TYPE unrecognized!");
 
   // Normalize output?
-  std::string params_str; parse("FOURIER_PARAMETERS",params_str);
+  std::string params_str; parse("FOURIER_PARAMS",params_str);
   if (params_str=="default") {
       fourier_params.assign( fourier_params.size(), 1 );
       log.printf("  default values of Fourier parameters A=%i, B=%i : the output will NOT be normalized and BACKWARD Fourier transform is computed \n", fourier_params[0],fourier_params[1]);
   } else {
       std::vector<std::string> fourier_str = Tools::getWords(params_str, "\t\n ,");
-      if (fourier_str.size()>2) error("FOURIER_PARAMETERS can take just two values");
+      if (fourier_str.size()>2) error("FOURIER_PARAMS can take just two values");
       for (unsigned i=0; i<fourier_str.size(); ++i) {
           Tools::convert(fourier_str[i],fourier_params[i]);
-          if (fourier_params[i]>1 || fourier_params[i]<-1) error("values accepted for FOURIER_PARAMETERS are only -1, 1 or 0");
+          if (fourier_params[i]>1 || fourier_params[i]<-1) error("values accepted for FOURIER_PARAMS are only -1, 1 or 0");
       }
       log.printf("  Fourier parameters are A=%i, B=%i \n", fourier_params[0],fourier_params[1]);
   }
