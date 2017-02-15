@@ -113,7 +113,7 @@ DumpMultiColvar::DumpMultiColvar(const ActionOptions&ao):
   if( atom.size()==1 ) log.printf("  origin is at position of atom : %d\n",atom[0].serial() );
 
   string file; parse("FILE",file);
-  if(file.length()==0) error("name out output file was not specified");
+  if(file.length()==0) error("output file name was not specified");
   std::string type=Tools::extension(file);
   log<<"  file name "<<file<<"\n";
   if(type!="xyz") error("can only print xyz file type with DUMPMULTICOLVAR");
