@@ -41,6 +41,8 @@ Action(ao),
 ActionPilot(ao),
 fmt("%f")
 {
+  if (getStride()==0) { log.printf("  grid file will be output only at the end of the trajectory\n"); }
+
   std::string mlab; parse("GRID",mlab);
   vesselbase::ActionWithVessel* mves= plumed.getActionSet().selectWithLabel<vesselbase::ActionWithVessel*>(mlab);
   if(!mves) error("action labelled " +  mlab + " does not exist or does not have vessels");
