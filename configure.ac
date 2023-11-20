@@ -110,7 +110,7 @@ AC_DEFUN([PLUMED_CHECK_PACKAGE], [
        AC_DEFINE([$3])
        $3=yes
     else
-       AC_MSG_WARN([cannot enable $3]) 
+       AC_MSG_WARN([cannot enable $3])
     fi
 ])
 
@@ -150,7 +150,7 @@ AC_DEFUN([PLUMED_CHECK_CXX_PACKAGE], [
       AC_DEFINE([$3])
       $3=yes
     else
-      AC_MSG_WARN([cannot enable $3]) 
+      AC_MSG_WARN([cannot enable $3])
       LIBS="$save_LIBS"
     fi
 ])
@@ -284,6 +284,7 @@ PLUMED_CONFIG_ENABLE([af_ocl],[search for arrayfire_ocl],[no])
 PLUMED_CONFIG_ENABLE([af_cuda],[search for arrayfire_cuda],[no])
 PLUMED_CONFIG_ENABLE([af_cpu],[search for arrayfire_cpu],[no])
 PLUMED_CONFIG_ENABLE([rascal],[search for rascal],[no])
+PLUMED_CONFIG_ENABLE([rascaline],[search for rascaline],[no])
 
 AC_ARG_VAR(SOEXT,[extension of dynamic libraries (so/dylib)])
 AC_ARG_VAR(STATIC_LIBS,[variables that should be linked statically directly to MD code - configure will add here -ldl if necessary ])
@@ -323,7 +324,7 @@ AC_PROG_CXX([$compilers])
 AC_PROG_CC([$c_compilers])
 
 # also setup Fortran compiler
-# this is optional, and can be used in the late part of this 
+# this is optional, and can be used in the late part of this
 # script to verify that fortran can indeed link properly the
 # a c++ library
 AC_PROG_FC
@@ -553,7 +554,7 @@ else
 AC_DEFINE([__PLUMED_HAS_EXTERNAL_LAPACK])
 fi
 
-fi 
+fi
 
 # in case external blas have been found, take note of their underscoring
 # notice that this applies also when external blas are used with internal lapack
@@ -668,7 +669,7 @@ if test $mpi == true ; then
   if test "$__PLUMED_HAS_MPI" = yes; then
     mpi_found=ok
   fi
-else 
+else
   mpi_found=ko
 fi
 
@@ -880,10 +881,21 @@ if test $rascal == true ; then
   PLUMED_CHECK_CXX_PACKAGE([rascal],[
 #include <rascal/utils/utils.hh>
 int main() {
-   std::string etest=rascal::internal::get_filename_extension("file.dat"); 
+   std::string etest=rascal::internal::get_filename_extension("file.dat");
    return 0;
 }
   ], [__PLUMED_HAS_RASCAL])
+fi
+
+# check for rascaline
+if test $rascaline == true ; then
+  PLUMED_CHECK_CXX_PACKAGE([rascaline],[
+#include <rascaline.hpp>
+int main() {
+   auto e = rascaline::RascalineError("test");
+   return 0;
+}
+  ], [__PLUMED_HAS_RASCALINE])
 fi
 
 # this is necessary in many MPI implementations
@@ -961,7 +973,7 @@ then
       fi
     else
       AC_MSG_WARN([readelf not available, no way to set rpath])
-    fi 
+    fi
   fi
   rm -f conftest.*
 fi
@@ -1122,9 +1134,9 @@ if test "$ld_r" == true ; then
 for test_LD_RO in "$($CXX --print-prog-name=ld) -r -o" "$CXX -Wl,-r -o" "ld -r -o"
 do
   AC_MSG_CHECKING([whether C++ objects can be grouped with $test_LD_RO])
-  
+
   rm -f conftest-*
-  
+
   cat << EOF > conftest-main.cpp
   void f(void);
   int main(int argc,char**argv){ f(); return 0; }
@@ -1136,15 +1148,15 @@ EOF
   cat << EOF > conftest-g.cpp
   void g(void){ return; }
 EOF
-  
+
   $CXX $CXXFLAGS -c conftest-main.cpp 1> /dev/null 2> /dev/null
   $CXX $CXXFLAGS -c conftest-f.cpp 1> /dev/null 2> /dev/null
   $CXX $CXXFLAGS -c conftest-g.cpp 1> /dev/null 2> /dev/null
-  
+
   $test_LD_RO conftest-both.o conftest-f.o conftest-g.o 1> /dev/null 2> /dev/null
-  
+
   $CXX $CXXFLAGS -o conftest.exe conftest-main.o conftest-both.o 1> /dev/null 2> /dev/null
-  
+
   if test -f conftest.exe
   then
     AC_MSG_RESULT([yes])
@@ -1163,9 +1175,9 @@ if test "$ar_cr" == true ; then
 for test_AR_CR in "$($CXX --print-prog-name=ar) cr" "ar cr"
 do
   AC_MSG_CHECKING([whether static libraries can be created with $test_AR_CR])
-  
+
   rm -f conftest-*
-  
+
   cat << EOF > conftest-main.cpp
   void f(void);
   int main(int argc,char**argv){ f(); return 0; }
@@ -1177,15 +1189,15 @@ EOF
   cat << EOF > conftest-g.cpp
   void g(void){ return; }
 EOF
-  
+
   $CXX $CXXFLAGS -c conftest-main.cpp 1> /dev/null 2> /dev/null
   $CXX $CXXFLAGS -c conftest-f.cpp 1> /dev/null 2> /dev/null
   $CXX $CXXFLAGS -c conftest-g.cpp 1> /dev/null 2> /dev/null
-  
+
   $test_AR_CR conftest-both.a conftest-f.o conftest-g.o 1> /dev/null 2> /dev/null
-  
+
   $CXX $CXXFLAGS -o conftest.exe conftest-main.o conftest-both.a 1> /dev/null 2> /dev/null
-  
+
   if test -f conftest.exe
   then
     AC_MSG_RESULT([yes])
@@ -1195,7 +1207,7 @@ EOF
     AC_MSG_RESULT([no])
   fi
 done
- 
+
 fi
 
 make_static_archive=no
@@ -1213,7 +1225,7 @@ if test "${static_archive}" == true ; then
 
   magic_token=c1bc476d093a3a5c67b4530e6c54c633593fe9aa
   rm -f conftest-*
-  
+
   cat << EOF > conftest-main.cpp
   void f(void);
   int main(int argc,char**argv){ f(); return 0; }
@@ -1232,7 +1244,7 @@ EOF
   $CXX $CXXFLAGS -c conftest-main.cpp 1> /dev/null 2> /dev/null
   $CXX $CXXFLAGS -c conftest-f.cpp 1> /dev/null 2> /dev/null
   $CXX $CXXFLAGS -c conftest-g.cpp 1> /dev/null 2> /dev/null
-  
+
   $LD_RO conftest-both.o conftest-f.o conftest-g.o 1> /dev/null 2> /dev/null
 # linking the previously merged objects should work:
   $AR_CR conftest-both.a conftest-both.o 1> /dev/null 2> /dev/null
@@ -1284,7 +1296,7 @@ void f(void){
   std::cout<<"ciao";return;
 }
 EOF
-    $CXX $CXXFLAGS -c conftest.cpp 
+    $CXX $CXXFLAGS -c conftest.cpp
 # start search:
     found=
     if test "${libsearch}" == true ; then
@@ -1401,7 +1413,7 @@ fi
 if test $mpi == true; then
   if test $mpi_found == ok; then
     AC_MSG_NOTICE([**** PLUMED will be compiled using MPI])
-  else 
+  else
     AC_MSG_WARN([**** PLUMED will NOT be compiled using MPI because MPI have not been found!])
   fi
 else
@@ -1434,4 +1446,3 @@ AC_CONFIG_FILES([Makefile.conf sourceme.sh])
 # The date of this file keeps track of when Makefile.conf and sourceme.sh have been updated
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_OUTPUT
-
