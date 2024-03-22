@@ -62,6 +62,7 @@
 !/s2cm
 !/pytorch
 !/membranefusion
+!/metatensor
 
 # And just ignore these files
 *.xxd
