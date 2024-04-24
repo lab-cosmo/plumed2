@@ -1,13 +1,24 @@
-# Metatensor module for PLUMED
+\page metatensor Metatensor interface 
 
+<!--
+description: Module that implements interface with metatensor 
+authors: Guillaume Fraux
+reference: 
+-->
 
-## Building the code
+The metatensor module allows one to call metatensor, which is a specialized dat storage format for atomistic machine learning, from PLUMED.
+You can learn more about metatensor by reading [the metatensor manual](https://lab-cosmo.github.io/metatensor/latest/).
 
-1. You'll need to fist install libtorch, either by installing PyTorch itself
-   with Python, or by downloading the prebuilt C++ library from
-   https://pytorch.org/get-started/locally/.
+To use metatensor from plumed you use the \ref METATENSOR action.
 
-```bash
+\section metatensor-build Building PLUMED with metatensor
+
+You'll need to fist install libtorch, either by installing PyTorch itself
+with Python, or by downloading the prebuilt C++ library from
+[here](https://pytorch.org/get-started/locally/).  Once you have installed libtorch you 
+need to set the following options in bash.
+
+\verbatim
 # point this to the path where you extracted the C++ libtorch
 TORCH_PREFIX=../../..
 # if you used Python to install torch, you can do this:
@@ -15,12 +26,13 @@ TORCH_CMAKE_PREFIX=$(python -c "import torch; print(torch.utils.cmake_prefix_pat
 TORCH_PREFIX=$(cd "$TORCH_CMAKE_PREFIX/../.." && pwd)
 
 TORCH_INCLUDES="-I$TORCH_PREFIX/include -I$TORCH_PREFIX/include/torch/csrc/api/include"
-```
+\endverbatim
 
-2. a) build and install metatensor-torch from source. You'll need a rust
-      compiler on your system, the easiest way is by using https://rustup.rs/
+You can then either build and install metatensor-torch from source. You'll need a rust
+compiler on your system.  The easiest way to install a rust compiler is to use [the following site](https://rustup.rs/).
+Once the rust compiler is installed you should then follow the instructions that follow: 
 
-```bash
+\verbatim
 # patch a bug from torch's MKL detection
 cd <PLUMED/DIR>
 ./src/metatensor/patch-torch.sh "$TORCH_PREFIX"
@@ -44,21 +56,22 @@ cmake -DBUILD_SHARED_LIBS=ON \
       ..
 
 cmake --build . --target install --parallel
-```
+\endverbatim
 
-2. b) alternatively, use metatensor-torch from Python (`pip install metatensor[torch]`)
+Instead of doing the above, you can alternatively, use metatensor-torch from Python (`pip install metatensor[torch]`).
+Once the installation has completed you then enter the following commands:
 
-```bash
+\verbatim
 METATENSOR_CMAKE_PREFIX=$(python -c "import metatensor; print(metatensor.utils.cmake_prefix_path)")
 METATENSOR_PREFIX=$(cd "$METATENSOR_CMAKE_PREFIX/../.." && pwd)
 
 METATENSOR_TORCH_CMAKE_PREFIX=$(python -c "import metatensor.torch; print(metatensor.torch.utils.cmake_prefix_path)")
 METATENSOR_TORCH_PREFIX=$(cd "$METATENSOR_TORCH_CMAKE_PREFIX/../.." && pwd)
-```
+\endverbatim
 
-3. build Plumed itself
+Once these two steps are completed you can then install plumed itself using the following commands:
 
-```bash
+\verbatim
 cd <PLUMED/DIR>
 
 # set the rpath to make sure plumed executable will be able to find the right libraries
@@ -78,7 +91,7 @@ RPATH="-Wl,-rpath,$TORCH_PREFIX/lib -Wl,-rpath,$METATENSOR_PREFIX/lib -Wl,-rpath
     CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0"
 
 make -j && make install
-```
+\endverbatim
 
 
 <!-- TODO: explain vesin update process -->
