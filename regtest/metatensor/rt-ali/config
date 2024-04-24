@@ -1,0 +1,9 @@
+plumed_modules=metatensor
+plumed_needs=metatensor
+type=driver
+arg="--plumed plumed.dat --ixyz traj.xyz --length-units A" # --debug-forces forces.num
+
+function plumed_regtest_before(){
+  python soap_cv.py
+  echo Generated model using soap_cv.py
+}
