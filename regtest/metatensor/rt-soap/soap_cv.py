@@ -32,6 +32,7 @@ class SOAP_CV(torch.nn.Module):
             atomic_gaussian_width=0.3,
         )
 
+        torch.manual_seed(-230623)
         self.register_buffer("pca_projection", torch.rand(2520, 3, dtype=torch.float64))
 
     def forward(
