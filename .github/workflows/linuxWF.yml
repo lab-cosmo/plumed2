@@ -102,18 +102,18 @@ jobs:
       run: |
         pip install "metatensor-torch ==0.4.0"
         pip install metatensor-operations metatensor-learn
-        echo "TORCH_CMAKE_PREFIX=$(python -c \"import torch; print(torch.utils.cmake_prefix_path)\")" >> $GITHUB_ENV
-        echo "TORCH_PREFIX=$(cd \"$TORCH_CMAKE_PREFIX/../..\" && pwd)" >> $GITHUB_ENV
-        echo "METATENSOR_CMAKE_PREFIX=$(python -c \"import metatensor; print(metatensor.utils.cmake_prefix_path)\")" >> $GITHUB_ENV
-        echo "METATENSOR_PREFIX=$(cd \"$METATENSOR_CMAKE_PREFIX/../..\" && pwd)" >> $GITHUB_ENV 
-        echo "METATENSOR_TORCH_CMAKE_PREFIX=$(python -c \"import metatensor.torch; print(metatensor.torch.utils.cmake_prefix_path)\")" >> $GITHUB_ENV
-        echo "METATENSOR_TORCH_PREFIX=$(cd \"$METATENSOR_TORCH_CMAKE_PREFIX/../..\" && pwd)" >> $GITHUB_ENV
-        echo "TORCH_CPPFLAGS=\"-D_GLIBCXX_USE_CXX11_ABI=0\""  >> $GITHUB_ENV
-        echo "TORCH_INCLUDES=\"-I$TORCH_PREFIX/include -I$TORCH_PREFIX/include/torch/csrc/api/include\"" >> $GITHUB_ENV
-        echo "CPPFLAGS=\"$TORCH_INCLUDES $TORCH_CPPFLAGS -I$METATENSOR_PREFIX/include -I$METATENSOR_TORCH_PREFIX/include $CPPFLAGS\"" >> $GITHUB_ENV 
-        echo "LDFLAGS=\"-L$TORCH_PREFIX/lib -L$METATENSOR_PREFIX/lib -L$METATENSOR_TORCH_PREFIX/lib $LDFLAGS\"" >> $GITHUB_ENV
-        echo "LDFLAGS=\"$LDFLAGS -Wl,-rpath,$TORCH_PREFIX/lib\"" >> $GITHUB_ENV
-        echo "LDFLAGS=\"$LDFLAGS -Wl,-rpath,$METATENSOR_PREFIX/lib -Wl,-rpath,$METATENSOR_TORCH_PREFIX/lib\"" >> $GITHUB_ENV
+        echo 'TORCH_CMAKE_PREFIX=$(python -c "import torch; print(torch.utils.cmake_prefix_path)")' >> $GITHUB_ENV
+        echo 'TORCH_PREFIX=$(cd "$TORCH_CMAKE_PREFIX/../.." && pwd)' >> $GITHUB_ENV
+        echo 'METATENSOR_CMAKE_PREFIX=$(python -c "import metatensor; print(metatensor.utils.cmake_prefix_path)")' >> $GITHUB_ENV
+        echo 'METATENSOR_PREFIX=$(cd "$METATENSOR_CMAKE_PREFIX/../.." && pwd)' >> $GITHUB_ENV 
+        echo 'METATENSOR_TORCH_CMAKE_PREFIX=$(python -c "import metatensor.torch; print(metatensor.torch.utils.cmake_prefix_path)")' >> $GITHUB_ENV
+        echo 'METATENSOR_TORCH_PREFIX=$(cd "$METATENSOR_TORCH_CMAKE_PREFIX/../.." && pwd)' >> $GITHUB_ENV
+        echo 'TORCH_CPPFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0"'  >> $GITHUB_ENV
+        echo 'TORCH_INCLUDES="-I$TORCH_PREFIX/include -I$TORCH_PREFIX/include/torch/csrc/api/include"' >> $GITHUB_ENV
+        echo 'CPPFLAGS="$TORCH_INCLUDES $TORCH_CPPFLAGS -I$METATENSOR_PREFIX/include -I$METATENSOR_TORCH_PREFIX/include $CPPFLAGS"' >> $GITHUB_ENV 
+        echo 'LDFLAGS="-L$TORCH_PREFIX/lib -L$METATENSOR_PREFIX/lib -L$METATENSOR_TORCH_PREFIX/lib $LDFLAGS"' >> $GITHUB_ENV
+        echo 'LDFLAGS="$LDFLAGS -Wl,-rpath,$TORCH_PREFIX/lib"' >> $GITHUB_ENV
+        echo 'LDFLAGS="$LDFLAGS -Wl,-rpath,$METATENSOR_PREFIX/lib -Wl,-rpath,$METATENSOR_TORCH_PREFIX/lib"' >> $GITHUB_ENV
         echo "PLUMED_CONFIG=$PLUMED_CONFIG --enable-libtorch --enable-metatensor" >> $GITHUB_ENV
     - name: Install Doxygen
       if: contains( matrix.variant, '-doc-' )
