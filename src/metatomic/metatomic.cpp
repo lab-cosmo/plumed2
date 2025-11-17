@@ -407,66 +407,14 @@ MetatomicPlumedAction::MetatomicPlumedAction(const ActionOptions& options):
 
     // Determine which device we should use based on user input, what the model
     // supports and what's available
-    auto available_devices = std::vector<torch::Device>();
-    for (const auto& device: this->capabilities_->supported_devices) {
-        if (device == "cpu") {
-            available_devices.push_back(torch::kCPU);
-        } else if (device == "cuda") {
-            if (torch::cuda::is_available()) {
-                available_devices.push_back(torch::Device("cuda"));
-            }
-        } else if (device == "mps") {
-            #if TORCH_VERSION_MAJOR >= 2
-            if (torch::mps::is_available()) {
-                available_devices.push_back(torch::Device("mps"));
-            }
-            #endif
-        } else {
-            this->warning(
-                "the model declared support for unknown device '" + device +
-                "', it will be ignored"
-            );
-        }
-    }
-
-    if (available_devices.empty()) {
-        this->error(
-            "failed to find a valid device for the model at '" + model_path + "': "
-            "the model supports " + torch::str(this->capabilities_->supported_devices) +
-            ", none of these where available"
-        );
-    }
-
-    std::string requested_device;
-    this->parse("DEVICE", requested_device);
-    if (requested_device.empty()) {
-        // no user request, pick the device the model prefers
-        this->device_ = available_devices[0];
-    } else {
-        bool found_requested_device = false;
-        for (const auto& device: available_devices) {
-            if (device.is_cpu() && requested_device == "cpu") {
-                this->device_ = device;
-                found_requested_device = true;
-                break;
-            } else if (device.is_cuda() && requested_device == "cuda") {
-                this->device_ = device;
-                found_requested_device = true;
-                break;
-            } else if (device.is_mps() && requested_device == "mps") {
-                this->device_ = device;
-                found_requested_device = true;
-                break;
-            }
-        }
-
-        if (!found_requested_device) {
-            this->error(
-                "failed to find requested device (" + requested_device + "): it is either "
-                "not supported by this model or not available on this machine"
-            );
-        }
-    }
+    std::string requested_device_str;
+    this->parse("DEVICE", requested_device_str);
+    auto requested_device = requested_device_str.empty() ? torch::nullopt : torch::optional<std::string>(requested_device_str);
+    auto device_kind = metatomic_torch::pick_device(
+        this->capabilities_->supported_devices,
+        requested_device
+    );
+    this->device_ = torch::Device(device_kind);
 
     this->model_.to(this->device_);
     this->atomic_types_ = this->atomic_types_.to(this->device_);
